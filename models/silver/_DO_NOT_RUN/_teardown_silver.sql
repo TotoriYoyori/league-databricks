@@ -7,3 +7,6 @@
 -----------------------------------------------------------------------------------------
 DROP TABLE IF EXISTS league_records.silver.items_ref;
 DROP TABLE IF EXISTS league_records.silver.champions_ref;
+DROP TABLE IF EXISTS league_records.silver.matches;
+DROP TABLE IF EXISTS league_records.silver.players;
+DROP TABLE IF EXISTS league_records.silver.intervals;

@@ -1,9 +1,24 @@
+USE CATALOG league_records;
+
+USE SCHEMA silver;
+
+-------------------------------------------------------------------------------------------
+-- STRING OPS
+-------------------------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION pascal_to_title_case(raw_value STRING)
 RETURNS STRING
 COMMENT '[silver] Normalizes PascalCase or inconsistently-cased text into Title Case, e.g. TwistedFate -> Twisted Fate.'
 RETURN INITCAP(TRIM(
     REGEXP_REPLACE(raw_value, '([a-z])([A-Z])', '\$1 \$2')
 ))
+;
+
+CREATE OR REPLACE FUNCTION safecast_to_int(raw_value STRING)
+RETURNS INT 
+COMMENT '[silver] Expect and convert numeric-like strings to integer, regardless of decimals (will round up). Null if cannot be converted.'
+RETURN TRY_CAST(ROUND(
+    TRY_CAST(raw_value AS DOUBLE)
+, 0) AS INT)
 ;
 
 CREATE OR REPLACE FUNCTION valid_num_range(

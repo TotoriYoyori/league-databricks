@@ -1,3 +1,7 @@
+USE CATALOG league_records;
+
+USE SCHEMA silver;
+
 -------------------------------------------------------------------------------------------
 -- 01. CLEANING VIEW
 -------------------------------------------------------------------------------------------
@@ -10,10 +14,7 @@ SELECT
         WHEN '200' THEN 'Red'
         ELSE NULL
     END AS winning_team,
-    -- Double (float/int) -> round to whole seconds -> cast back to INT
-    TRY_CAST(ROUND(
-        TRY_CAST(game_duration AS DOUBLE)
-    , 0) AS INT) AS game_duration,
+    league_records.silver.safecast_to_int(game_duration) AS game_duration,
     TRY_CAST(game_date AS TIMESTAMP) AS game_date,
     game_version,
     INITCAP(average_rank) AS average_rank,
@@ -28,13 +29,14 @@ SELECT
     ) AS red_bans
 FROM STREAM(bronze.matches)
 ;
-
 -------------------------------------------------------------------------------------------
 -- 02. DDL (Pure append-only streaming table)
 -------------------------------------------------------------------------------------------
 CREATE OR REFRESH STREAMING TABLE matches (
+    -- Key
     match_id STRING NOT NULL,
     winning_team STRING NOT NULL COMMENT 'Blue or Red. Not null for joins.',
+    -- Description
     game_duration INT COMMENT 'Match duration in seconds.',
     game_date TIMESTAMP COMMENT 'Match end timestamp.',
     game_version STRING COMMENT 'Game client version string.',
@@ -43,7 +45,10 @@ CREATE OR REFRESH STREAMING TABLE matches (
     red_bans ARRAY<INT> COMMENT 'Red team champion ban sequence.',
 
     CONSTRAINT valid_match_id EXPECT (match_id IS NOT NULL) ON VIOLATION DROP ROW,
-    CONSTRAINT valid_winning_team EXPECT (winning_team IS NOT NULL) ON VIOLATION DROP ROW,
+    CONSTRAINT valid_winning_team EXPECT (
+        winning_team IS NOT NULL
+        AND winning_team IN ('Blue', 'Red')
+    ) ON VIOLATION DROP ROW,
 
     CONSTRAINT ok_game_duration EXPECT (game_duration BETWEEN 0 AND 3 * 60 * 60),
     CONSTRAINT ok_game_date EXPECT (game_date BETWEEN TIMESTAMP '2009-10-27 00:00:00' AND CURRENT_TIMESTAMP()),
@@ -51,8 +56,10 @@ CREATE OR REFRESH STREAMING TABLE matches (
 
     CONSTRAINT silver_matches_pkey PRIMARY KEY (match_id)
 )
+CLUSTER BY (match_id)
 COMMENT '[silver] Classic mode (Summoner''s Rift 5v5, draft queue) match summary.'
 AS
+
 SELECT *
 FROM STREAM(matches_clean)
 ;
