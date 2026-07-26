@@ -3,7 +3,7 @@
 -------------------------------------------------------------------------------------------
 CREATE OR REFRESH STREAMING TABLE items_ref (
     -- Source
-    item_id STRING NOT NULL,
+    item_id STRING,
     item_name STRING,
     item_category STRING,
     -- Metadata

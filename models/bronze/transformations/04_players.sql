@@ -3,8 +3,8 @@
 -------------------------------------------------------------------------------------------
 CREATE OR REFRESH STREAMING TABLE players (
     -- Source
-    id STRING NOT NULL,
-    match_id STRING NOT NULL,
+    id STRING,
+    match_id STRING,
     participant_id STRING,
     team_id STRING,
     champion STRING,

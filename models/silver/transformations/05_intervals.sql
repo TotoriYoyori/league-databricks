@@ -1,62 +1,31 @@
-USE CATALOG league_records;
-
-USE SCHEMA silver;
-
 -------------------------------------------------------------------------------------------
 -- 01. CLEANING VIEW
 -------------------------------------------------------------------------------------------
 CREATE TEMPORARY VIEW intervals_clean AS
 SELECT
     UPPER(match_id) AS match_id,
-    -- player_id 3210 -> participant_pos_id 10 // player_id 3156 -> participant_pos_id 6
+    -- player_id 3210 -> participant_pos_id 10 // player_id 3156 -> participant_pos_id 6 (source: Riot API)
     ((
         league_records.silver.safecast_to_int(player_id) - 1
     ) % 10) + 1 AS participant_pos_id,
-    -- Player 1-5 -> Blue // Player 6-10 -> Red
+    -- Player 1-5 -> Blue // Player 6-10 -> Red (source: Riot API)
     CASE
-        WHEN ((league_records.silver.safecast_to_int(player_id) - 1) % 10) + 1 BETWEEN 1 AND 5 THEN 'Blue'
-        WHEN ((league_records.silver.safecast_to_int(player_id) - 1) % 10) + 1 BETWEEN 6 AND 10 THEN 'Red'
+        WHEN ((league_records.silver.safecast_to_int(player_id) - 1) % 10) + 1 BETWEEN 1 AND 5 THEN 'BLUE'
+        WHEN ((league_records.silver.safecast_to_int(player_id) - 1) % 10) + 1 BETWEEN 6 AND 10 THEN 'RED'
         ELSE NULL
     END AS team,
-    league_records.silver.valid_num_range(
-        league_records.silver.safecast_to_int(minute), 
-        0, 10000
-    )::INT AS minute,
+    league_records.silver.safecast_to_int(minute) AS minute, 
     -- Economy
     league_records.silver.safecast_to_int(current_gold) AS current_gold,
-    league_records.silver.valid_num_range(
-        league_records.silver.safecast_to_int(total_gold), 
-        0, 1000000000
-    )::INT AS total_gold,
-    league_records.silver.valid_num_range(
-        league_records.silver.safecast_to_int(cs), 
-        0, 10000
-    )::INT AS cs,
-    league_records.silver.valid_num_range(
-        league_records.silver.safecast_to_int(jungle_cs), 
-        0, 10000
-    )::INT AS jungle_cs,
-    league_records.silver.valid_num_range(
-        league_records.silver.safecast_to_int(xp), 
-        0, 1000000000
-    )::INT AS xp,
-    league_records.silver.valid_num_range(
-        league_records.silver.safecast_to_int(level), 
-        0, 20
-    )::INT AS level,
+    league_records.silver.safecast_to_int(total_gold) AS total_gold,
+    league_records.silver.safecast_to_int(cs) AS cs,
+    league_records.silver.safecast_to_int(jungle_cs) AS jungle_cs,
+    league_records.silver.safecast_to_int(xp) AS xp,
+    league_records.silver.safecast_to_int(level) AS level,
     -- KDA
-    league_records.silver.valid_num_range(
-        league_records.silver.safecast_to_int(kills), 
-        0, 1000
-    )::INT AS kills,
-    league_records.silver.valid_num_range(
-        league_records.silver.safecast_to_int(deaths), 
-        0, 1000
-    )::INT AS deaths,
-    league_records.silver.valid_num_range(
-        league_records.silver.safecast_to_int(assists), 
-        0, 1000
-    )::INT AS assists,
+    league_records.silver.safecast_to_int(kills) AS kills,
+    league_records.silver.safecast_to_int(deaths) AS deaths,
+    league_records.silver.safecast_to_int(assists) AS assists,
     -- Itemization: 0 means no item, nullify
     NULLIF(league_records.silver.safecast_to_int(item_0), 0) AS item_0,
     NULLIF(league_records.silver.safecast_to_int(item_1), 0) AS item_1,
@@ -66,58 +35,19 @@ SELECT
     NULLIF(league_records.silver.safecast_to_int(item_5), 0) AS item_5,
     NULLIF(league_records.silver.safecast_to_int(item_6), 0) AS item_6,
     -- Team's objectives
-    league_records.silver.valid_num_range(
-        league_records.silver.safecast_to_int(team_kills), 
-        0, 10000
-    )::INT AS team_kills,
-    league_records.silver.valid_num_range(
-        league_records.silver.safecast_to_int(team_inhibitors), 
-        0, 100
-    )::INT AS team_inhibitors,
-    league_records.silver.valid_num_range(
-        league_records.silver.safecast_to_int(team_towers), 
-        0, 100
-    )::INT AS team_towers,
-    league_records.silver.valid_num_range(
-        league_records.silver.safecast_to_int(team_dragons_fire), 
-        0, 4
-    )::INT AS team_dragons_fire,
-    league_records.silver.valid_num_range(
-        league_records.silver.safecast_to_int(team_dragons_water), 
-        0, 4
-    )::INT AS team_dragons_water,
-    league_records.silver.valid_num_range(
-        league_records.silver.safecast_to_int(team_dragons_earth), 
-        0, 4
-    )::INT AS team_dragons_earth,
-    league_records.silver.valid_num_range(
-        league_records.silver.safecast_to_int(team_dragons_air), 
-        0, 4
-    )::INT AS team_dragons_air,
-    league_records.silver.valid_num_range(
-        league_records.silver.safecast_to_int(team_dragons_chemtech), 
-        0, 4
-    )::INT AS team_dragons_chemtech,
-    league_records.silver.valid_num_range(
-        league_records.silver.safecast_to_int(team_dragons_hextech), 
-        0, 4
-    )::INT AS team_dragons_hextech,
-    league_records.silver.valid_num_range(
-        league_records.silver.safecast_to_int(team_dragons), 
-        0, 100
-    )::INT AS team_dragons,
-    league_records.silver.valid_num_range(
-        league_records.silver.safecast_to_int(team_barons), 
-        0, 100
-    )::INT AS team_barons,
-    league_records.silver.valid_num_range(
-        league_records.silver.safecast_to_int(team_void_grubs), 
-        0, 100
-    )::INT AS team_void_grubs,
-    league_records.silver.valid_num_range(
-        league_records.silver.safecast_to_int(team_heralds), 
-        0, 100
-    )::INT AS team_heralds,
+    league_records.silver.safecast_to_int(team_kills) AS team_kills,
+    league_records.silver.safecast_to_int(team_inhibitors) AS team_inhibitors,
+    league_records.silver.safecast_to_int(team_towers) AS team_towers,
+    league_records.silver.safecast_to_int(team_dragons_fire) AS team_dragons_fire,
+    league_records.silver.safecast_to_int(team_dragons_water) AS team_dragons_water,
+    league_records.silver.safecast_to_int(team_dragons_earth) AS team_dragons_earth,
+    league_records.silver.safecast_to_int(team_dragons_air) AS team_dragons_air,
+    league_records.silver.safecast_to_int(team_dragons_chemtech) AS team_dragons_chemtech,
+    league_records.silver.safecast_to_int(team_dragons_hextech) AS team_dragons_hextech,
+    league_records.silver.safecast_to_int(team_dragons) AS team_dragons,
+    league_records.silver.safecast_to_int(team_barons) AS team_barons,
+    league_records.silver.safecast_to_int(team_void_grubs) AS team_void_grubs,
+    league_records.silver.safecast_to_int(team_heralds) AS team_heralds,
     -- Diffs (no range clamp, matches Snowflake original)
     league_records.silver.safecast_to_int(gold_diff) AS gold_diff,
     league_records.silver.safecast_to_int(xp_diff) AS xp_diff,
@@ -130,10 +60,10 @@ FROM STREAM(bronze.intervals)
 -------------------------------------------------------------------------------------------
 CREATE OR REFRESH STREAMING TABLE intervals (
     -- Key
-    match_id STRING NOT NULL COMMENT 'Unique match identifier.',
-    participant_pos_id INT NOT NULL COMMENT 'Player position 1-10, derived from raw player_id.',
-    team STRING NOT NULL COMMENT 'Blue or Red.',
-    minute INT NOT NULL COMMENT 'Minute mark of this snapshot, expected in 5-minute intervals.',
+    match_id STRING NOT NULL,
+    participant_pos_id INT NOT NULL COMMENT 'The index position of the player at queue time. 1-5 for BLUE side, 6-10 for RED side.',
+    team STRING NOT NULL COMMENT 'BLUE or RED.',
+    minute INT NOT NULL COMMENT 'Minute mark of this snapshot, in 5-minute intervals.',
     -- Economy
     current_gold INT COMMENT 'Unspent gold on hand at this minute mark.',
     total_gold INT COMMENT 'Cumulative gold earned by this minute mark.',
@@ -179,7 +109,7 @@ CREATE OR REFRESH STREAMING TABLE intervals (
     ) ON VIOLATION DROP ROW,
     CONSTRAINT valid_team EXPECT (
         team IS NOT NULL 
-        AND team IN ('Blue', 'Red')
+        AND team IN ('BLUE', 'RED')
     ) ON VIOLATION DROP ROW,
     CONSTRAINT valid_minute EXPECT (minute IS NOT NULL) ON VIOLATION DROP ROW,
 

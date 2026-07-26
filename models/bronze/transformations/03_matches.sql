@@ -3,7 +3,7 @@
 -------------------------------------------------------------------------------------------
 CREATE OR REFRESH STREAMING TABLE matches (
     -- Source
-    match_id STRING NOT NULL,
+    match_id STRING,
     game_duration STRING,
     patch_version STRING,
     winning_team STRING,

@@ -1,7 +1,3 @@
-USE CATALOG league_records;
-
-USE SCHEMA silver;
-
 -------------------------------------------------------------------------------------------
 -- 01. CLEANING VIEW
 -------------------------------------------------------------------------------------------
@@ -15,19 +11,15 @@ SELECT
     )::INT AS participant_pos_id,
     -- Normalize 100 -> Blue / 200 -> Red
     CASE team_id
-        WHEN '100' THEN 'Blue'
-        WHEN '200' THEN 'Red'
+        WHEN '100' THEN 'BLUE'
+        WHEN '200' THEN 'RED'
         ELSE NULL
     END AS team,
-    -- PascalCase -> Title Case + Fix the known 'Fiddle Sticks' naming discrepancy.
-    REPLACE(
-        league_records.silver.pascal_to_title_case(champion), 
-        'Fiddle Sticks', 'Fiddlesticks'
-    ) AS champion_name,
-    -- Normalized to Title Case, and to standard naming (Top, Jungle, Mid, Bottom, Support)
+    -- Normalized to UPPER CASE, and to standard naming (Top, Jungle, Mid, Bottom, Support)
+    UPPER(champion) AS champion_name,
     CASE
-        WHEN UPPER(role) = 'UTILITY' THEN 'Support'
-        ELSE INITCAP(role)
+        WHEN UPPER(role) = 'UTILITY' THEN 'SUPPORT'
+        ELSE UPPER(role)
     END AS champion_role
 FROM STREAM(bronze.players)
 ;
@@ -38,11 +30,11 @@ FROM STREAM(bronze.players)
 CREATE OR REFRESH STREAMING TABLE players (
     -- Key
     match_id STRING NOT NULL,
-    participant_pos_id INT NOT NULL COMMENT 'The index position of the player at queue time. 1-5 for Blue side, 6-10 for Red side.',
-    team STRING NOT NULL COMMENT 'Blue or Red.',
+    participant_pos_id INT NOT NULL COMMENT 'The index position of the player at queue time. 1-5 for BLUE side, 6-10 for RED side.',
+    team STRING NOT NULL COMMENT 'BLUE or RED.',
     -- Description
-    champion_name STRING COMMENT 'The name of the champion as recorded in the log, normalized from bronze.',
-    champion_role STRING COMMENT 'Resolved role played by the player based on in-game signals.',
+    champion_name STRING COMMENT 'The name of the champion as recorded in the log.',
+    champion_role STRING COMMENT 'Resolved role played by the player, based on in-game signals, not queue selection.',
 
     CONSTRAINT valid_match_id EXPECT (match_id IS NOT NULL) ON VIOLATION DROP ROW,
     CONSTRAINT valid_participant_pos_id EXPECT (
@@ -51,8 +43,10 @@ CREATE OR REFRESH STREAMING TABLE players (
     ) ON VIOLATION DROP ROW,
     CONSTRAINT valid_team EXPECT (
         team IS NOT NULL
-        AND team IN ('Blue', 'Red')
+        AND team IN ('BLUE', 'RED')
     ) ON VIOLATION DROP ROW,
+
+    CONSTRAINT ok_champion_role EXPECT (champion_role IN ('TOP', 'JUNGLE', 'MIDDLE', 'BOTTOM', 'SUPPORT')),
 
     CONSTRAINT silver_players_pkey PRIMARY KEY (match_id, participant_pos_id)
 )

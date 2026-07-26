@@ -1,17 +1,13 @@
-USE CATALOG league_records;
-
-USE SCHEMA silver;
-
 -------------------------------------------------------------------------------------------
 -- 01. CLEANING VIEW
 -------------------------------------------------------------------------------------------
 CREATE TEMPORARY VIEW matches_clean AS
 SELECT
     UPPER(match_id) AS match_id,
-    -- Normalize team to readable format: 100 -> Blue, 200 -> Red
+    -- Map team to readable format: 100 -> Blue, 200 -> Red (source: Riot API)
     CASE winning_team
-        WHEN '100' THEN 'Blue'
-        WHEN '200' THEN 'Red'
+        WHEN '100' THEN 'BLUE'
+        WHEN '200' THEN 'RED'
         ELSE NULL
     END AS winning_team,
     league_records.silver.safecast_to_int(game_duration) AS game_duration,
@@ -47,7 +43,7 @@ CREATE OR REFRESH STREAMING TABLE matches (
     CONSTRAINT valid_match_id EXPECT (match_id IS NOT NULL) ON VIOLATION DROP ROW,
     CONSTRAINT valid_winning_team EXPECT (
         winning_team IS NOT NULL
-        AND winning_team IN ('Blue', 'Red')
+        AND winning_team IN ('BLUE', 'RED')
     ) ON VIOLATION DROP ROW,
 
     CONSTRAINT ok_game_duration EXPECT (game_duration BETWEEN 0 AND 3 * 60 * 60),

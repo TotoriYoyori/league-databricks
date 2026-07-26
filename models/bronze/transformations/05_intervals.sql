@@ -3,10 +3,10 @@
 -------------------------------------------------------------------------------------------
 CREATE OR REFRESH STREAMING TABLE intervals (
     -- ID
-    id STRING NOT NULL,
-    match_id STRING NOT NULL,
-    player_id STRING NOT NULL,
-    minute STRING NOT NULL,
+    id STRING,
+    match_id STRING,
+    player_id STRING,
+    minute STRING,
     -- Economy
     current_gold STRING,
     total_gold STRING,

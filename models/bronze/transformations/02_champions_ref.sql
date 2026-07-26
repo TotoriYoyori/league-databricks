@@ -3,7 +3,7 @@
 -------------------------------------------------------------------------------------------
 CREATE OR REFRESH STREAMING TABLE champions_ref (
     -- Source
-    champion_id STRING NOT NULL,
+    champion_id STRING,
     champion_name STRING,
     -- Metadata
     ldts TIMESTAMP NOT NULL,

@@ -11,10 +11,10 @@
 --     (separate from the timeline/interval endpoint), prefer that for final build and
 --     final KDA/gold specifically, and keep interval data only for time-series analysis.
 -------------------------------------------------------------------------------------------
-CREATE OR REFRESH MATERIALIZED VIEW stats_summary (
+CREATE OR REFRESH MATERIALIZED VIEW matchend_player_stats (
     -- Key
-    match_id STRING NOT NULL COMMENT 'Unique match identifier.',
-    participant_pos_id INT NOT NULL COMMENT 'Player position 1-10.',
+    match_id STRING NOT NULL,
+    participant_pos_id INT NOT NULL COMMENT 'The index position of the player at queue time. 1-5 for BLUE side, 6-10 for RED side.',
     -- Context
     game_duration INT COMMENT 'Match duration in seconds.',
     team STRING COMMENT 'Blue or Red.',
