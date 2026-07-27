@@ -16,6 +16,12 @@ MAX_RETRIES = 3
 
 # --------------- 02. Helpers ---------------
 def create_if_not_exists(directory: Path) -> None:
+    """Creates a directory if it doesn't already exist.
+
+    Args:
+        directory: Path to the directory to create. Parent directories
+            are created as needed.
+    """
     if directory.is_dir():
         print(f"Already exists, skipping: {directory}")
     else:
@@ -23,7 +29,23 @@ def create_if_not_exists(directory: Path) -> None:
         print(f"Created folder: {directory}")
 
 
-def download_file(from_url: str, to_vol_path: Path) -> None:
+def download_file_if_not_exists(
+    from_url: str, 
+    to_vol_path: Path
+) -> None:
+    """Downloads a file to the given path, unless a non-empty file already exists there.
+
+    A 0-byte file at the destination is treated as an incomplete download
+    from a previous interrupted run, and is retried rather than skipped.
+    Retries up to MAX_RETRIES times on request failures before giving up.
+
+    Args:
+        from_url: URL to download the file from.
+        to_vol_path: Destination path to write the downloaded file to.
+
+    Raises:
+        RuntimeError: If the download fails after MAX_RETRIES attempts.
+    """
     if to_vol_path.exists() and to_vol_path.stat().st_size > 0:
         print(f"Already exists, skipping: {to_vol_path} ({to_vol_path.stat().st_size} bytes)")
         return
@@ -56,6 +78,6 @@ if __name__ == "__main__":
 
         url = f"{RELEASE_BASE_URL}/{filename}"
         dest_path = VOLUME_DIR / subfolder / filename
-        download_file(url, dest_path)
+        download_file_if_not_exists(url, dest_path)
 
     print("\n✅ Done.")

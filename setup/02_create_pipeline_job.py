@@ -1,18 +1,28 @@
 from pathlib import Path
 from databricks.sdk import WorkspaceClient
 from databricks.sdk.service.pipelines import PipelineLibrary, PathPattern
-from databricks.sdk.service.jobs import Task, PipelineTask, TaskDependency
+from databricks.sdk.service.jobs import Job, Task, PipelineTask, TaskDependency
 
 w = WorkspaceClient()
 
 # --------------- 01. Constants ---------------
 CATALOG = "league_records"
-
+SCHEMA_LAYERS = ['bronze', 'silver', 'gold']
+JOB_NAME = 'league_csv_etl'
 
 # --------------- 02. Steps ---------------
 def to_workspace_path(fs_path: Path) -> str:
-    """Convert a /Workspace/... filesystem path to the workspace-style path
-    Databricks pipeline APIs expect (e.g. /Repos/<user>/<repo>/...)."""
+    """Converts a /Workspace/... filesystem path to the workspace-style path
+    Databricks pipeline APIs expect.
+
+    Args:
+        fs_path: Filesystem path, e.g. /Workspace/Repos/<user>/<repo>/....
+
+    Returns:
+        The workspace-style path with the /Workspace prefix stripped, e.g.
+        /Repos/<user>/<repo>/.... If fs_path doesn't start with /Workspace,
+        it is returned unchanged.
+    """
     s = str(fs_path)
     if s.startswith("/Workspace"):
         return s[len("/Workspace"):]
@@ -41,15 +51,67 @@ def get_or_create_pipeline(name: str, source_glob: str, layer: str) -> str | Non
     return new_pipeline.pipeline_id
 
 
+def create_medallion_job_if_not_exists(
+    job_name: str,
+    bronze_id: str,
+    silver_id: str,
+    gold_id: str,
+) -> Job:
+    """Creates the job that chains the bronze, silver, and gold pipelines
+    together in order (bronze -> silver -> gold), unless a job with the
+    same name already exists.
+
+    Args:
+        bronze_id: Pipeline ID for the bronze layer pipeline.
+        silver_id: Pipeline ID for the silver layer pipeline. Runs only
+            after the bronze pipeline succeeds.
+        gold_id: Pipeline ID for the gold layer pipeline. Runs only after
+            the silver pipeline succeeds.
+        job_name: Name to give the job. Defaults to "league_csv_etl".
+
+    Returns:
+        The existing Job object if one with the same name already exists,
+        otherwise the newly created Job object.
+    """
+    existing_jobs = list(w.jobs.list(name=job_name))
+    if existing_jobs:
+        existing_job = existing_jobs[0]
+        print(f"Found existing job: {job_name} ({existing_job.job_id}), skipping creation.")
+        return existing_job
+
+    print("---------- Creating job ----------")
+    job = w.jobs.create(
+        name=job_name,
+        tasks=[
+            Task(
+                task_key="run_bronze_pipeline",
+                pipeline_task=PipelineTask(pipeline_id=bronze_id),
+            ),
+            Task(
+                task_key="run_silver_pipeline",
+                depends_on=[TaskDependency(task_key="run_bronze_pipeline")],
+                pipeline_task=PipelineTask(pipeline_id=silver_id),
+            ),
+            Task(
+                task_key="run_gold_pipeline",
+                depends_on=[TaskDependency(task_key="run_silver_pipeline")],
+                pipeline_task=PipelineTask(pipeline_id=gold_id),
+            ),
+        ],
+    )
+    print("✅ Job created successfully!")
+    print(f"Job ID: {job.job_id}")
+    print(f"Job Name: {job.settings.name}")
+    return job
+
+
 # --------------- 03. Main ---------------
 if __name__ == "__main__":
-    repo_root = Path(__file__).resolve().parent.parent 
+    repo_root = Path(__file__).resolve().parent.parent
     repo_root_ws_path = to_workspace_path(repo_root)
-
     model_paths = {
-        "bronze": f"{repo_root_ws_path}/models/bronze/transformations/**",
-        "silver": f"{repo_root_ws_path}/models/silver/transformations/**",
-        "gold": f"{repo_root_ws_path}/models/gold/transformations/**",
+        layer: f"{repo_root_ws_path}/models/{layer}/transformations/**"
+        for layer in SCHEMA_LAYERS
     }
 
     print("---------- Resolved model source globs ----------")
@@ -57,37 +119,19 @@ if __name__ == "__main__":
         print(f"  {name}: {path}")
 
     print("---------- Creating or finding pipelines ----------")
-    PIPELINE_IDS = {
-        "league_bronze": get_or_create_pipeline(
-            name="league_bronze", 
-            source_glob=model_paths["bronze"], 
-            layer="bronze"
-        ),
-        "league_silver": get_or_create_pipeline("league_silver", model_paths["silver"], "silver"),
-        "league_gold": get_or_create_pipeline("league_gold", model_paths["gold"], "gold"),
+    pipeline_ids = {
+        f"league_{layer}": get_or_create_pipeline(
+            name=f"league_{layer}",
+            source_glob=model_paths[layer],
+            layer=layer
+        )
+        for layer in SCHEMA_LAYERS
     }
 
-    print("---------- Creating job ----------")
-    job = w.jobs.create(
-        name="League Data Pipeline - Bronze to Gold",
-        tasks=[
-            Task(
-                task_key="run_bronze_pipeline",
-                pipeline_task=PipelineTask(pipeline_id=PIPELINE_IDS["league_bronze"]),
-            ),
-            Task(
-                task_key="run_silver_pipeline",
-                depends_on=[TaskDependency(task_key="run_bronze_pipeline")],
-                pipeline_task=PipelineTask(pipeline_id=PIPELINE_IDS["league_silver"]),
-            ),
-            Task(
-                task_key="run_gold_pipeline",
-                depends_on=[TaskDependency(task_key="run_silver_pipeline")],
-                pipeline_task=PipelineTask(pipeline_id=PIPELINE_IDS["league_gold"]),
-            ),
-        ],
+    job = create_medallion_job_if_not_exists(
+        job_name=JOB_NAME,
+        **{
+            f"{layer}_id": pipeline_ids[f"league_{layer}"]
+            for layer in SCHEMA_LAYERS
+        }
     )
-
-    print("✅ Job created successfully!")
-    print(f"Job ID: {job.job_id}")
-    print(f"Job Name: {job.settings.name}")
