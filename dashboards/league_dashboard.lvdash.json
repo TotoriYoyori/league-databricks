@@ -1,0 +1,2393 @@
+{
+  "datasets": [
+    {
+      "name": "champion_stats",
+      "displayName": "champion_overview_fmt",
+      "queryLines": [
+        "SELECT\n",
+        "    champion_id,\n",
+        "    champion_name,\n",
+        "    most_picked_lane,\n",
+        "    ROUND(primary_lane_share * 100, 2) AS primary_lane_share,\n",
+        "    global_games_played,\n",
+        "    ROUND(global_pick_rate * 100, 2) AS global_pick_rate,\n",
+        "    ROUND(global_win_rate * 100, 2) AS global_win_rate,\n",
+        "    ROUND(global_ban_rate * 100, 2) AS global_ban_rate\n",
+        "FROM league_records.gold.champion_overviews\n",
+        ";"
+      ],
+      "catalog": "league_records",
+      "schema": "gold"
+    },
+    {
+      "name": "purchase_timing_top_items",
+      "displayName": "Purchase Timing - Top Items",
+      "queryLines": [
+        "WITH top_items AS (\n",
+        "  SELECT\n",
+        "    item_name\n",
+        "  FROM\n",
+        "    league_records.gold.item_recommendations\n",
+        "  GROUP BY\n",
+        "    item_name\n",
+        "  ORDER BY\n",
+        "    AVG(player_purchase_rate) DESC\n",
+        "  LIMIT 15\n",
+        ")\n",
+        "SELECT\n",
+        "  ir.item_name,\n",
+        "  AVG(ir.most_common_first_purchase_minute) AS avg_purchase_minute\n",
+        "FROM\n",
+        "  league_records.gold.item_recommendations ir\n",
+        "    INNER JOIN top_items ti\n",
+        "      ON ir.item_name = ti.item_name\n",
+        "GROUP BY\n",
+        "  ir.item_name\n",
+        "ORDER BY\n",
+        "  AVG(ir.most_common_first_purchase_minute) ASC"
+      ]
+    },
+    {
+      "name": "item_overview_counters",
+      "displayName": "Item Overview Counters",
+      "queryLines": [
+        "SELECT\n",
+        "  COUNT(DISTINCT item_name) AS total_unique_items,\n",
+        "  COUNT(DISTINCT champion_name) AS total_champions,\n",
+        "  ROUND(AVG(win_rate) * 100, 2) AS avg_win_rate_pct\n",
+        "FROM\n",
+        "  league_records.gold.item_recommendations"
+      ]
+    },
+    {
+      "name": "top_15_items_winrate",
+      "displayName": "Top 15 Items by Win Rate",
+      "queryLines": [
+        "SELECT\n",
+        "  champion_name,\n",
+        "  item_name,\n",
+        "  item_category,\n",
+        "  ROUND(AVG(win_rate) * 100, 2) AS win_rate_pct\n",
+        "FROM\n",
+        "  league_records.gold.item_recommendations\n",
+        "GROUP BY\n",
+        "  champion_name,\n",
+        "  item_name,\n",
+        "  item_category"
+      ]
+    },
+    {
+      "name": "item_recommendations_main",
+      "displayName": "Item Recommendations - Main",
+      "queryLines": [
+        "SELECT\n",
+        "  champion_name,\n",
+        "  item_name,\n",
+        "  item_category,\n",
+        "  ROUND(player_purchase_rate * 100, 2) AS purchase_rate_pct,\n",
+        "  ROUND(win_rate * 100, 2) AS win_rate_pct,\n",
+        "  ROUND(avg_kda, 2) AS avg_kda,\n",
+        "  most_common_first_purchase_minute,\n",
+        "  top_item_1,\n",
+        "  top_item_2,\n",
+        "  top_item_3\n",
+        "FROM\n",
+        "  league_records.gold.item_recommendations"
+      ]
+    },
+    {
+      "name": "top_15_items_purchase",
+      "displayName": "Top 15 Items by Purchase Rate",
+      "queryLines": [
+        "SELECT\n",
+        "  champion_name,\n",
+        "  item_name,\n",
+        "  item_category,\n",
+        "  ROUND(AVG(player_purchase_rate) * 100, 2) AS purchase_rate_pct\n",
+        "FROM\n",
+        "  league_records.gold.item_recommendations\n",
+        "GROUP BY\n",
+        "  champion_name,\n",
+        "  item_name,\n",
+        "  item_category"
+      ]
+    },
+    {
+      "name": "match_browser_main",
+      "displayName": "Match Browser - Main",
+      "queryLines": [
+        "SELECT\n",
+        "  m.match_id,\n",
+        "  m.game_date,\n",
+        "  m.game_duration,\n",
+        "  m.game_version,\n",
+        "  m.winning_team,\n",
+        "  m.average_rank,\n",
+        "  CONCAT_WS(\n",
+        "    ', ',\n",
+        "    COLLECT_LIST(DISTINCT\n",
+        "      CASE\n",
+        "        WHEN p.team = 'BLUE' THEN p.champion_name\n",
+        "      END\n",
+        "    )\n",
+        "  ) AS blue_champions,\n",
+        "  CONCAT_WS(\n",
+        "    ', ',\n",
+        "    COLLECT_LIST(DISTINCT\n",
+        "      CASE\n",
+        "        WHEN p.team = 'RED' THEN p.champion_name\n",
+        "      END\n",
+        "    )\n",
+        "  ) AS red_champions,\n",
+        "  MAX(\n",
+        "    CASE\n",
+        "      WHEN p.team = 'BLUE' THEN p.kills\n",
+        "    END\n",
+        "  ) AS blue_kills,\n",
+        "  MAX(\n",
+        "    CASE\n",
+        "      WHEN p.team = 'RED' THEN p.kills\n",
+        "    END\n",
+        "  ) AS red_kills\n",
+        "FROM\n",
+        "  league_records.silver.matches m\n",
+        "    LEFT JOIN league_records.gold.matchend_player_stats p\n",
+        "      ON m.match_id = p.match_id\n",
+        "GROUP BY\n",
+        "  m.match_id,\n",
+        "  m.game_date,\n",
+        "  m.game_duration,\n",
+        "  m.game_version,\n",
+        "  m.winning_team,\n",
+        "  m.average_rank\n",
+        "ORDER BY\n",
+        "  m.game_date DESC"
+      ]
+    },
+    {
+      "name": "match_champions_filter",
+      "displayName": "Match Champions Filter",
+      "queryLines": [
+        "SELECT DISTINCT\n",
+        "  champion_name\n",
+        "FROM\n",
+        "  league_records.gold.matchend_player_stats\n",
+        "WHERE\n",
+        "  champion_name IS NOT NULL\n",
+        "ORDER BY\n",
+        "  champion_name"
+      ]
+    },
+    {
+      "name": "match_champions",
+      "displayName": "Match Champions for Filtering",
+      "queryLines": [
+        "SELECT DISTINCT\n",
+        "  m.match_id,\n",
+        "  p.champion_name\n",
+        "FROM\n",
+        "  league_records.gold.matchend_pivot_teamstats m\n",
+        "    JOIN league_records.gold.matchend_player_stats p\n",
+        "      ON m.match_id = p.match_id\n",
+        "WHERE\n",
+        "  p.champion_name IS NOT NULL"
+      ]
+    },
+    {
+      "name": "match_dossiers",
+      "displayName": "Match Dossiers",
+      "queryLines": [
+        "SELECT\n",
+        "  match_id,\n",
+        "  game_date,\n",
+        "  ROUND(game_duration / 60.0, 1) AS game_duration_mins,\n",
+        "  game_version,\n",
+        "  winning_team,\n",
+        "  average_rank,\n",
+        "  blue_kills,\n",
+        "  blue_towers,\n",
+        "  blue_inhibitors,\n",
+        "  blue_dragons,\n",
+        "  blue_void_grubs,\n",
+        "  blue_heralds,\n",
+        "  blue_barons,\n",
+        "  red_kills,\n",
+        "  red_towers,\n",
+        "  red_inhibitors,\n",
+        "  red_dragons,\n",
+        "  red_void_grubs,\n",
+        "  red_heralds,\n",
+        "  red_barons,\n",
+        "  winning_gold_diff\n",
+        "FROM\n",
+        "  league_records.gold.matchend_pivot_teamstats\n",
+        "ORDER BY\n",
+        "  game_date DESC"
+      ]
+    }
+  ],
+  "pages": [
+    {
+      "name": "631a795b",
+      "displayName": "Champion Overview",
+      "layout": [
+        {
+          "widget": {
+            "name": "champion_name_filter",
+            "queries": [
+              {
+                "name": "dashboards/01f189016fab1b949dd465725aba6b99/datasets/01f18901b123117389a2e28ec27871ac_champion_name",
+                "query": {
+                  "datasetName": "champion_stats",
+                  "fields": [
+                    {
+                      "name": "champion_name",
+                      "expression": "`champion_name`"
+                    },
+                    {
+                      "name": "champion_name_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "title": "Search Champion",
+                "showTitle": true
+              },
+              "widgetType": "filter-single-select",
+              "encodings": {
+                "fields": [
+                  {
+                    "fieldName": "champion_name",
+                    "queryName": "dashboards/01f189016fab1b949dd465725aba6b99/datasets/01f18901b123117389a2e28ec27871ac_champion_name"
+                  }
+                ]
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 0,
+            "width": 6,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "lane_filter",
+            "queries": [
+              {
+                "name": "dashboards/01f189016fab1b949dd465725aba6b99/datasets/01f18901b123117389a2e28ec27871ac_most_picked_lane",
+                "query": {
+                  "datasetName": "champion_stats",
+                  "fields": [
+                    {
+                      "name": "most_picked_lane",
+                      "expression": "`most_picked_lane`"
+                    },
+                    {
+                      "name": "most_picked_lane_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "title": "Filter by Lane",
+                "showTitle": true
+              },
+              "widgetType": "filter-multi-select",
+              "encodings": {
+                "fields": [
+                  {
+                    "fieldName": "most_picked_lane",
+                    "queryName": "dashboards/01f189016fab1b949dd465725aba6b99/datasets/01f18901b123117389a2e28ec27871ac_most_picked_lane"
+                  }
+                ]
+              }
+            }
+          },
+          "position": {
+            "x": 6,
+            "y": 0,
+            "width": 6,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "total_champions",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "champion_stats",
+                  "fields": [
+                    {
+                      "name": "countdistinct(champion_id)",
+                      "expression": "COUNT(DISTINCT `champion_id`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "title": "Total Champions",
+                "showTitle": true
+              },
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "countdistinct(champion_id)",
+                  "rowNumber": 0
+                }
+              },
+              "data": {
+                "queryName": "main_query"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 1,
+            "width": 3,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
+            "name": "avg_win_rate",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "champion_stats",
+                  "fields": [
+                    {
+                      "name": "avg(global_win_rate)",
+                      "expression": "AVG(`global_win_rate`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "title": "Average Win Rate (%)",
+                "showTitle": true
+              },
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "avg(global_win_rate)",
+                  "rowNumber": 0
+                }
+              },
+              "data": {
+                "queryName": "main_query"
+              }
+            }
+          },
+          "position": {
+            "x": 3,
+            "y": 1,
+            "width": 3,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
+            "name": "avg_pick_rate",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "champion_stats",
+                  "fields": [
+                    {
+                      "name": "avg(global_pick_rate)",
+                      "expression": "AVG(`global_pick_rate`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "title": "Average Pick Rate (%)",
+                "showTitle": true
+              },
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "avg(global_pick_rate)",
+                  "rowNumber": 0
+                }
+              },
+              "data": {
+                "queryName": "main_query"
+              }
+            }
+          },
+          "position": {
+            "x": 6,
+            "y": 1,
+            "width": 3,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
+            "name": "avg_ban_rate",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "champion_stats",
+                  "fields": [
+                    {
+                      "name": "avg(global_ban_rate)",
+                      "expression": "AVG(`global_ban_rate`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "title": "Average Ban Rate (%)",
+                "showTitle": true
+              },
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "avg(global_ban_rate)",
+                  "rowNumber": 0
+                }
+              },
+              "data": {
+                "queryName": "main_query"
+              }
+            }
+          },
+          "position": {
+            "x": 9,
+            "y": 1,
+            "width": 3,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
+            "name": "champion_table",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "champion_stats",
+                  "fields": [
+                    {
+                      "name": "champion_name",
+                      "expression": "`champion_name`"
+                    },
+                    {
+                      "name": "most_picked_lane",
+                      "expression": "`most_picked_lane`"
+                    },
+                    {
+                      "name": "global_games_played",
+                      "expression": "`global_games_played`"
+                    },
+                    {
+                      "name": "global_pick_rate",
+                      "expression": "`global_pick_rate`"
+                    },
+                    {
+                      "name": "global_win_rate",
+                      "expression": "`global_win_rate`"
+                    },
+                    {
+                      "name": "global_ban_rate",
+                      "expression": "`global_ban_rate`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "title": "Champion Statistics",
+                "showTitle": true
+              },
+              "widgetType": "table",
+              "encodings": {
+                "columns": [
+                  {
+                    "fieldName": "champion_name"
+                  },
+                  {
+                    "fieldName": "most_picked_lane"
+                  },
+                  {
+                    "fieldName": "global_games_played"
+                  },
+                  {
+                    "fieldName": "global_pick_rate"
+                  },
+                  {
+                    "fieldName": "global_win_rate"
+                  },
+                  {
+                    "fieldName": "global_ban_rate"
+                  }
+                ]
+              },
+              "data": {
+                "queryName": "main_query"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 3,
+            "width": 12,
+            "height": 6
+          }
+        },
+        {
+          "widget": {
+            "name": "top_pick_rate_chart",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "champion_stats",
+                  "fields": [
+                    {
+                      "name": "most_picked_lane",
+                      "expression": "`most_picked_lane`"
+                    },
+                    {
+                      "name": "global_pick_rate",
+                      "expression": "`global_pick_rate`"
+                    },
+                    {
+                      "name": "champion_name",
+                      "expression": "`champion_name`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "frame": {
+                "title": "Top 10 Champions by Pick Rate",
+                "showTitle": true,
+                "showDescription": true,
+                "description": "(Aggregated statistics for majority Diamond+ matches)",
+                "headerAlignment": "center"
+              },
+              "mark": {
+                "layout": "stack"
+              },
+              "widgetType": "bar",
+              "encodings": {
+                "x": {
+                  "fieldName": "global_pick_rate",
+                  "axis": {
+                    "hideLabels": false,
+                    "hideGrid": false
+                  },
+                  "displayName": "Pick Rate (%)",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                },
+                "y": {
+                  "fieldName": "champion_name",
+                  "axis": {
+                    "hideLabels": false
+                  },
+                  "displayName": "Champion",
+                  "scale": {
+                    "type": "categorical",
+                    "categorySize": {
+                      "type": "number-of-categories",
+                      "number": 10
+                    },
+                    "sort": {
+                      "by": "x-reversed"
+                    }
+                  }
+                },
+                "color": {
+                  "fieldName": "most_picked_lane",
+                  "legend": {
+                    "hide": true
+                  },
+                  "displayName": "champion_name",
+                  "scale": {
+                    "type": "categorical"
+                  }
+                },
+                "label": {
+                  "show": true
+                }
+              },
+              "data": {
+                "queryName": "main_query"
+              }
+            }
+          },
+          "position": {
+            "x": 6,
+            "y": 15,
+            "width": 6,
+            "height": 6
+          }
+        },
+        {
+          "widget": {
+            "name": "top_win_rate_chart",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "champion_stats",
+                  "fields": [
+                    {
+                      "name": "most_picked_lane",
+                      "expression": "`most_picked_lane`"
+                    },
+                    {
+                      "name": "global_win_rate",
+                      "expression": "`global_win_rate`"
+                    },
+                    {
+                      "name": "champion_name",
+                      "expression": "`champion_name`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "frame": {
+                "title": "Top 10 Champions by Win Rate",
+                "showTitle": true,
+                "showDescription": true,
+                "description": "(Aggregated statistics for majority Diamond+ matches)",
+                "headerAlignment": "center"
+              },
+              "widgetType": "bar",
+              "encodings": {
+                "x": {
+                  "fieldName": "global_win_rate",
+                  "axis": {
+                    "title": "Win Rate (%)",
+                    "hideTitle": false,
+                    "hideGrid": false
+                  },
+                  "displayName": "global_win_rate",
+                  "scale": {
+                    "type": "quantitative",
+                    "reverse": false
+                  }
+                },
+                "y": {
+                  "fieldName": "champion_name",
+                  "scale": {
+                    "type": "categorical",
+                    "categorySize": {
+                      "type": "number-of-categories",
+                      "number": 10
+                    },
+                    "sort": {
+                      "by": "x-reversed"
+                    }
+                  }
+                },
+                "color": {
+                  "fieldName": "most_picked_lane",
+                  "legend": {
+                    "position": "bottom",
+                    "title": "Lanes"
+                  },
+                  "scale": {
+                    "type": "categorical",
+                    "sort": {
+                      "by": "custom-order",
+                      "orderedValues": [
+                        "BOTTOM",
+                        "JUNGLE",
+                        "MIDDLE",
+                        "SUPPORT",
+                        "TOP"
+                      ]
+                    }
+                  }
+                },
+                "label": {
+                  "show": true
+                }
+              },
+              "data": {
+                "queryName": "main_query"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 9,
+            "width": 8,
+            "height": 6
+          }
+        },
+        {
+          "widget": {
+            "name": "top_ban_rate_chart",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "champion_stats",
+                  "fields": [
+                    {
+                      "name": "most_picked_lane",
+                      "expression": "`most_picked_lane`"
+                    },
+                    {
+                      "name": "global_ban_rate",
+                      "expression": "`global_ban_rate`"
+                    },
+                    {
+                      "name": "champion_name",
+                      "expression": "`champion_name`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "frame": {
+                "title": "Top 15 Most Banned Champions",
+                "showTitle": true,
+                "headerAlignment": "center",
+                "showDescription": true,
+                "description": "(Aggregated statistics for majority Diamond+ matches)"
+              },
+              "widgetType": "bar",
+              "encodings": {
+                "x": {
+                  "fieldName": "global_ban_rate",
+                  "axis": {
+                    "title": "Ban Rate (%)"
+                  },
+                  "displayName": "global_ban_rate",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                },
+                "y": {
+                  "fieldName": "champion_name",
+                  "axis": {
+                    "title": "Champion"
+                  },
+                  "displayName": "champion_name",
+                  "scale": {
+                    "type": "categorical",
+                    "categorySize": {
+                      "type": "number-of-categories",
+                      "number": 10
+                    },
+                    "sort": {
+                      "by": "x-reversed"
+                    }
+                  }
+                },
+                "color": {
+                  "fieldName": "most_picked_lane",
+                  "legend": {
+                    "hide": true
+                  },
+                  "scale": {
+                    "type": "categorical"
+                  }
+                },
+                "label": {
+                  "show": true
+                }
+              },
+              "data": {
+                "queryName": "main_query"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 15,
+            "width": 6,
+            "height": 6
+          }
+        },
+        {
+          "widget": {
+            "name": "lane_distribution",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "champion_stats",
+                  "fields": [
+                    {
+                      "name": "count(champion_id)",
+                      "expression": "COUNT(`champion_id`)"
+                    },
+                    {
+                      "name": "most_picked_lane",
+                      "expression": "`most_picked_lane`"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "frame": {
+                "title": "Champions by Lane Distribution",
+                "showTitle": true,
+                "headerAlignment": "center"
+              },
+              "widgetType": "pie",
+              "encodings": {
+                "angle": {
+                  "fieldName": "count(champion_id)",
+                  "scale": {
+                    "type": "quantitative"
+                  },
+                  "axis": {
+                    "hideTitle": true
+                  },
+                  "displayName": "champion_id"
+                },
+                "color": {
+                  "fieldName": "most_picked_lane",
+                  "legend": {
+                    "title": "Lanes",
+                    "hide": false,
+                    "hideTitle": true,
+                    "position": "bottom"
+                  },
+                  "displayName": "most_picked_lane",
+                  "scale": {
+                    "type": "categorical",
+                    "sort": {
+                      "by": "angle-reversed"
+                    }
+                  }
+                },
+                "label": {
+                  "show": true
+                }
+              },
+              "data": {
+                "queryName": "main_query"
+              }
+            }
+          },
+          "position": {
+            "x": 8,
+            "y": 9,
+            "width": 4,
+            "height": 6
+          }
+        }
+      ],
+      "pageType": "PAGE_TYPE_CANVAS",
+      "layoutVersion": "GRID_V1"
+    },
+    {
+      "name": "4eb31d01",
+      "displayName": "Item Recommendations",
+      "layout": [
+        {
+          "widget": {
+            "name": "filter_champion",
+            "queries": [
+              {
+                "name": "dashboards/01f189016fab1b949dd465725aba6b99/datasets/01f18f54464e124ea6a549884d48713b_champion_name",
+                "query": {
+                  "datasetName": "item_recommendations_main",
+                  "fields": [
+                    {
+                      "name": "champion_name",
+                      "expression": "`champion_name`"
+                    },
+                    {
+                      "name": "champion_name_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "title": "Champion Filter",
+                "showTitle": true
+              },
+              "widgetType": "filter-multi-select",
+              "encodings": {
+                "fields": [
+                  {
+                    "fieldName": "champion_name",
+                    "queryName": "dashboards/01f189016fab1b949dd465725aba6b99/datasets/01f18f54464e124ea6a549884d48713b_champion_name"
+                  }
+                ]
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 0,
+            "width": 6,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "filter_category",
+            "queries": [
+              {
+                "name": "dashboards/01f189016fab1b949dd465725aba6b99/datasets/01f18f54464e124ea6a549884d48713b_item_category",
+                "query": {
+                  "datasetName": "item_recommendations_main",
+                  "fields": [
+                    {
+                      "name": "item_category",
+                      "expression": "`item_category`"
+                    },
+                    {
+                      "name": "item_category_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "title": "Item Category Filter",
+                "showTitle": true
+              },
+              "widgetType": "filter-multi-select",
+              "encodings": {
+                "fields": [
+                  {
+                    "fieldName": "item_category",
+                    "queryName": "dashboards/01f189016fab1b949dd465725aba6b99/datasets/01f18f54464e124ea6a549884d48713b_item_category"
+                  }
+                ]
+              }
+            }
+          },
+          "position": {
+            "x": 6,
+            "y": 0,
+            "width": 6,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "table_item_stats",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "item_recommendations_main",
+                  "fields": [
+                    {
+                      "name": "item_name",
+                      "expression": "`item_name`"
+                    },
+                    {
+                      "name": "item_category",
+                      "expression": "`item_category`"
+                    },
+                    {
+                      "name": "purchase_rate_pct",
+                      "expression": "`purchase_rate_pct`"
+                    },
+                    {
+                      "name": "win_rate_pct",
+                      "expression": "`win_rate_pct`"
+                    },
+                    {
+                      "name": "avg_kda",
+                      "expression": "`avg_kda`"
+                    },
+                    {
+                      "name": "most_common_first_purchase_minute",
+                      "expression": "`most_common_first_purchase_minute`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "title": "Item Statistics",
+                "showTitle": true
+              },
+              "widgetType": "table",
+              "encodings": {
+                "columns": [
+                  {
+                    "fieldName": "item_name"
+                  },
+                  {
+                    "fieldName": "item_category"
+                  },
+                  {
+                    "fieldName": "purchase_rate_pct"
+                  },
+                  {
+                    "fieldName": "win_rate_pct"
+                  },
+                  {
+                    "fieldName": "avg_kda"
+                  },
+                  {
+                    "fieldName": "most_common_first_purchase_minute"
+                  }
+                ]
+              },
+              "data": {
+                "queryName": "main_query"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 8,
+            "width": 12,
+            "height": 7
+          }
+        },
+        {
+          "widget": {
+            "name": "table_builds",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "item_recommendations_main",
+                  "fields": [
+                    {
+                      "name": "item_name",
+                      "expression": "`item_name`"
+                    },
+                    {
+                      "name": "top_item_1",
+                      "expression": "`top_item_1`"
+                    },
+                    {
+                      "name": "top_item_2",
+                      "expression": "`top_item_2`"
+                    },
+                    {
+                      "name": "top_item_3",
+                      "expression": "`top_item_3`"
+                    },
+                    {
+                      "name": "purchase_rate_pct",
+                      "expression": "`purchase_rate_pct`"
+                    },
+                    {
+                      "name": "win_rate_pct",
+                      "expression": "`win_rate_pct`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "title": "Item Build Recommendations",
+                "showTitle": true
+              },
+              "widgetType": "table",
+              "encodings": {
+                "columns": [
+                  {
+                    "fieldName": "item_name"
+                  },
+                  {
+                    "fieldName": "top_item_1"
+                  },
+                  {
+                    "fieldName": "top_item_2"
+                  },
+                  {
+                    "fieldName": "top_item_3"
+                  },
+                  {
+                    "fieldName": "purchase_rate_pct"
+                  },
+                  {
+                    "fieldName": "win_rate_pct"
+                  }
+                ]
+              },
+              "data": {
+                "queryName": "main_query"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 1,
+            "width": 12,
+            "height": 7
+          }
+        }
+      ],
+      "pageType": "PAGE_TYPE_CANVAS",
+      "layoutVersion": "GRID_V1"
+    },
+    {
+      "name": "9e8a6a53",
+      "displayName": "Match Browser",
+      "layout": [
+        {
+          "widget": {
+            "name": "header",
+            "multilineTextboxSpec": {
+              "lines": [
+                "# <span style=\"text-align:center;display:block;color:#9ee5f7;text-transform:uppercase;letter-spacing:2px\">LEAGUE MATCH BROWSER</span>"
+              ]
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 0,
+            "width": 12,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "filter_date",
+            "queries": [
+              {
+                "name": "dashboards/01f189016fab1b949dd465725aba6b99/datasets/01f18f59424816d0a699f24cdc4c2f43_game_date",
+                "query": {
+                  "datasetName": "match_dossiers",
+                  "fields": [
+                    {
+                      "name": "game_date",
+                      "expression": "`game_date`"
+                    },
+                    {
+                      "name": "game_date_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "title": "Game Date",
+                "showTitle": true,
+                "showDescription": false
+              },
+              "style": {
+                "fontColor": {
+                  "dark": "#FFFFFF"
+                }
+              },
+              "widgetType": "filter-date-range-picker",
+              "encodings": {
+                "fields": [
+                  {
+                    "fieldName": "game_date",
+                    "queryName": "dashboards/01f189016fab1b949dd465725aba6b99/datasets/01f18f59424816d0a699f24cdc4c2f43_game_date"
+                  }
+                ]
+              }
+            },
+            "specExtensions": {
+              "widgetBorderColor": {
+                "dark": "#FFFFFF"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 1,
+            "width": 8,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "filter_rank",
+            "queries": [
+              {
+                "name": "dashboards/01f189016fab1b949dd465725aba6b99/datasets/01f18f59424816d0a699f24cdc4c2f43_average_rank",
+                "query": {
+                  "datasetName": "match_dossiers",
+                  "fields": [
+                    {
+                      "name": "average_rank",
+                      "expression": "`average_rank`"
+                    },
+                    {
+                      "name": "average_rank_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "title": "Average Rank",
+                "showTitle": true
+              },
+              "style": {
+                "fontColor": {
+                  "dark": "#FFFFFF"
+                }
+              },
+              "widgetType": "filter-multi-select",
+              "encodings": {
+                "fields": [
+                  {
+                    "fieldName": "average_rank",
+                    "queryName": "dashboards/01f189016fab1b949dd465725aba6b99/datasets/01f18f59424816d0a699f24cdc4c2f43_average_rank"
+                  }
+                ]
+              }
+            },
+            "specExtensions": {
+              "widgetBorderColor": {
+                "dark": "#FFFFFF"
+              }
+            }
+          },
+          "position": {
+            "x": 6,
+            "y": 2,
+            "width": 6,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "filter_version",
+            "queries": [
+              {
+                "name": "dashboards/01f189016fab1b949dd465725aba6b99/datasets/01f18f59424816d0a699f24cdc4c2f43_game_version",
+                "query": {
+                  "datasetName": "match_dossiers",
+                  "fields": [
+                    {
+                      "name": "game_version",
+                      "expression": "`game_version`"
+                    },
+                    {
+                      "name": "game_version_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "title": "Game Version",
+                "showTitle": true
+              },
+              "style": {
+                "fontColor": {
+                  "dark": "#FFFFFF"
+                }
+              },
+              "widgetType": "filter-multi-select",
+              "encodings": {
+                "fields": [
+                  {
+                    "fieldName": "game_version",
+                    "queryName": "dashboards/01f189016fab1b949dd465725aba6b99/datasets/01f18f59424816d0a699f24cdc4c2f43_game_version"
+                  }
+                ]
+              }
+            },
+            "specExtensions": {
+              "widgetBorderColor": {
+                "dark": "#FFFFFF"
+              }
+            }
+          },
+          "position": {
+            "x": 8,
+            "y": 1,
+            "width": 4,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "filter_match_id",
+            "queries": [
+              {
+                "name": "dashboards/01f189016fab1b949dd465725aba6b99/datasets/01f18f59424816d0a699f24cdc4c2f43_match_id",
+                "query": {
+                  "datasetName": "match_dossiers",
+                  "fields": [
+                    {
+                      "name": "match_id",
+                      "expression": "`match_id`"
+                    },
+                    {
+                      "name": "match_id_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "title": "Select Match ID",
+                "showTitle": true,
+                "headerAlignment": "left"
+              },
+              "style": {
+                "fontColor": {
+                  "dark": "#FFFFFF"
+                }
+              },
+              "widgetType": "filter-single-select",
+              "encodings": {
+                "fields": [
+                  {
+                    "fieldName": "match_id",
+                    "queryName": "dashboards/01f189016fab1b949dd465725aba6b99/datasets/01f18f59424816d0a699f24cdc4c2f43_match_id"
+                  }
+                ]
+              }
+            },
+            "specExtensions": {
+              "widgetBorderColor": {
+                "dark": "#FFFFFF"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 3,
+            "width": 12,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "match_overview",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "match_dossiers",
+                  "fields": [
+                    {
+                      "name": "game_date",
+                      "expression": "`game_date`"
+                    },
+                    {
+                      "name": "game_duration_mins",
+                      "expression": "`game_duration_mins`"
+                    },
+                    {
+                      "name": "winning_team",
+                      "expression": "`winning_team`"
+                    },
+                    {
+                      "name": "average_rank",
+                      "expression": "`average_rank`"
+                    },
+                    {
+                      "name": "game_version",
+                      "expression": "`game_version`"
+                    },
+                    {
+                      "name": "winning_gold_diff",
+                      "expression": "`winning_gold_diff`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "title": "MATCH OVERVIEW",
+                "showTitle": true,
+                "headerAlignment": "center"
+              },
+              "style": {
+                "fontColor": {
+                  "dark": "#FFD700"
+                }
+              },
+              "widgetType": "table",
+              "encodings": {
+                "columns": [
+                  {
+                    "fieldName": "game_date"
+                  },
+                  {
+                    "fieldName": "game_duration_mins"
+                  },
+                  {
+                    "fieldName": "winning_team"
+                  },
+                  {
+                    "fieldName": "average_rank"
+                  },
+                  {
+                    "fieldName": "game_version"
+                  },
+                  {
+                    "fieldName": "winning_gold_diff"
+                  }
+                ]
+              },
+              "data": {
+                "queryName": "main_query"
+              }
+            },
+            "specExtensions": {
+              "widgetBorderColor": {
+                "dark": "#FFD700"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 4,
+            "width": 12,
+            "height": 6
+          }
+        },
+        {
+          "widget": {
+            "name": "filter_champion",
+            "queries": [
+              {
+                "name": "dashboards/01f189016fab1b949dd465725aba6b99/datasets/01f18f59421f1fa7ad072adf755df30d_champion_name",
+                "query": {
+                  "datasetName": "match_champions",
+                  "fields": [
+                    {
+                      "name": "champion_name",
+                      "expression": "`champion_name`"
+                    },
+                    {
+                      "name": "champion_name_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "title": "Champion",
+                "showTitle": true
+              },
+              "style": {
+                "fontColor": {
+                  "dark": "#FFFFFF"
+                }
+              },
+              "widgetType": "filter-multi-select",
+              "encodings": {
+                "fields": [
+                  {
+                    "fieldName": "champion_name",
+                    "queryName": "dashboards/01f189016fab1b949dd465725aba6b99/datasets/01f18f59421f1fa7ad072adf755df30d_champion_name"
+                  }
+                ]
+              }
+            },
+            "specExtensions": {
+              "widgetBorderColor": {
+                "dark": "#FFFFFF"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 2,
+            "width": 6,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "blue_header",
+            "multilineTextboxSpec": {
+              "lines": [
+                "## <span style=\"text-align:center;display:block\"><span style=\"color:#9ee5f7;font-weight:bold\">BLUE TEAM</span></span>"
+              ]
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 10,
+            "width": 6,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "red_header",
+            "multilineTextboxSpec": {
+              "lines": [
+                "## <span style=\"text-align:center;display:block\"><span style=\"color:#a31d1d;font-weight:bold\">RED TEAM</span></span>"
+              ],
+              "verticalAlign": "VERTICAL_ALIGN_CENTER"
+            }
+          },
+          "position": {
+            "x": 6,
+            "y": 10,
+            "width": 6,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "blue_kills",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "match_dossiers",
+                  "fields": [
+                    {
+                      "name": "blue_kills",
+                      "expression": "`blue_kills`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "title": "Kills",
+                "showTitle": true,
+                "headerAlignment": "center"
+              },
+              "style": {
+                "fontColor": {
+                  "light": "#9ee5f7",
+                  "dark": "#9ee5f7"
+                }
+              },
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "blue_kills"
+                }
+              },
+              "data": {
+                "queryName": "main_query"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 11,
+            "width": 3,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "blue_towers",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "match_dossiers",
+                  "fields": [
+                    {
+                      "name": "blue_towers",
+                      "expression": "`blue_towers`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "title": "Towers",
+                "showTitle": true,
+                "headerAlignment": "center"
+              },
+              "style": {
+                "fontColor": {
+                  "light": "#9ee5f7",
+                  "dark": "#9ee5f7"
+                }
+              },
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "blue_towers"
+                }
+              },
+              "data": {
+                "queryName": "main_query"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 12,
+            "width": 3,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "blue_inhibitors",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "match_dossiers",
+                  "fields": [
+                    {
+                      "name": "blue_inhibitors",
+                      "expression": "`blue_inhibitors`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "title": "Inhibitors",
+                "showTitle": true,
+                "headerAlignment": "center"
+              },
+              "style": {
+                "fontColor": {
+                  "light": "#9ee5f7",
+                  "dark": "#9ee5f7"
+                }
+              },
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "blue_inhibitors"
+                }
+              },
+              "data": {
+                "queryName": "main_query"
+              }
+            }
+          },
+          "position": {
+            "x": 3,
+            "y": 12,
+            "width": 3,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "blue_dragons",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "match_dossiers",
+                  "fields": [
+                    {
+                      "name": "blue_dragons",
+                      "expression": "`blue_dragons`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "title": "Dragons",
+                "showTitle": true,
+                "headerAlignment": "center"
+              },
+              "style": {
+                "fontColor": {
+                  "light": "#9ee5f7",
+                  "dark": "#9ee5f7"
+                }
+              },
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "blue_dragons"
+                }
+              },
+              "data": {
+                "queryName": "main_query"
+              }
+            }
+          },
+          "position": {
+            "x": 3,
+            "y": 11,
+            "width": 3,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "blue_void_grubs",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "match_dossiers",
+                  "fields": [
+                    {
+                      "name": "sum(blue_void_grubs)",
+                      "expression": "SUM(`blue_void_grubs`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "title": "Void Grubs",
+                "showTitle": true,
+                "headerAlignment": "center"
+              },
+              "style": {
+                "fontColor": {
+                  "light": "#9ee5f7",
+                  "dark": "#9ee5f7"
+                }
+              },
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "sum(blue_void_grubs)",
+                  "rowNumber": 0
+                }
+              },
+              "data": {
+                "queryName": "main_query"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 13,
+            "width": 2,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
+            "name": "blue_heralds",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "match_dossiers",
+                  "fields": [
+                    {
+                      "name": "sum(blue_heralds)",
+                      "expression": "SUM(`blue_heralds`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "title": "Heralds",
+                "showTitle": true,
+                "headerAlignment": "center"
+              },
+              "style": {
+                "fontColor": {
+                  "light": "#9ee5f7",
+                  "dark": "#9ee5f7"
+                }
+              },
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "sum(blue_heralds)",
+                  "rowNumber": 0
+                }
+              },
+              "data": {
+                "queryName": "main_query"
+              }
+            }
+          },
+          "position": {
+            "x": 4,
+            "y": 13,
+            "width": 2,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
+            "name": "blue_barons",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "match_dossiers",
+                  "fields": [
+                    {
+                      "name": "sum(blue_barons)",
+                      "expression": "SUM(`blue_barons`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "title": "Barons",
+                "showTitle": true,
+                "headerAlignment": "center"
+              },
+              "style": {
+                "fontColor": {
+                  "light": "#9ee5f7",
+                  "dark": "#9ee5f7"
+                }
+              },
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "sum(blue_barons)",
+                  "rowNumber": 0
+                }
+              },
+              "data": {
+                "queryName": "main_query"
+              }
+            }
+          },
+          "position": {
+            "x": 2,
+            "y": 13,
+            "width": 2,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
+            "name": "red_kills",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "match_dossiers",
+                  "fields": [
+                    {
+                      "name": "sum(red_kills)",
+                      "expression": "SUM(`red_kills`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "title": "Kills",
+                "showTitle": true,
+                "headerAlignment": "center"
+              },
+              "style": {
+                "fontColor": {
+                  "light": "#a31d1d",
+                  "dark": "#a31d1d"
+                }
+              },
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "sum(red_kills)",
+                  "rowNumber": 0
+                }
+              },
+              "data": {
+                "queryName": "main_query"
+              }
+            }
+          },
+          "position": {
+            "x": 6,
+            "y": 11,
+            "width": 3,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "red_towers",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "match_dossiers",
+                  "fields": [
+                    {
+                      "name": "sum(red_towers)",
+                      "expression": "SUM(`red_towers`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "title": "Towers",
+                "showTitle": true,
+                "headerAlignment": "center"
+              },
+              "style": {
+                "fontColor": {
+                  "light": "#a31d1d",
+                  "dark": "#a31d1d"
+                }
+              },
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "sum(red_towers)",
+                  "rowNumber": 0
+                }
+              },
+              "data": {
+                "queryName": "main_query"
+              }
+            }
+          },
+          "position": {
+            "x": 6,
+            "y": 12,
+            "width": 3,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "red_inhibitors",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "match_dossiers",
+                  "fields": [
+                    {
+                      "name": "sum(red_inhibitors)",
+                      "expression": "SUM(`red_inhibitors`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "title": "Inhibitors",
+                "showTitle": true,
+                "headerAlignment": "center"
+              },
+              "style": {
+                "fontColor": {
+                  "light": "#a31d1d",
+                  "dark": "#a31d1d"
+                }
+              },
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "sum(red_inhibitors)",
+                  "rowNumber": 0
+                }
+              },
+              "data": {
+                "queryName": "main_query"
+              }
+            }
+          },
+          "position": {
+            "x": 9,
+            "y": 12,
+            "width": 3,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "red_dragons",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "match_dossiers",
+                  "fields": [
+                    {
+                      "name": "sum(red_dragons)",
+                      "expression": "SUM(`red_dragons`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "title": "Dragons",
+                "showTitle": true,
+                "headerAlignment": "center"
+              },
+              "style": {
+                "fontColor": {
+                  "light": "#a31d1d",
+                  "dark": "#a31d1d"
+                }
+              },
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "sum(red_dragons)",
+                  "rowNumber": 0
+                }
+              },
+              "data": {
+                "queryName": "main_query"
+              }
+            }
+          },
+          "position": {
+            "x": 9,
+            "y": 11,
+            "width": 3,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "red_void_grubs",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "match_dossiers",
+                  "fields": [
+                    {
+                      "name": "sum(red_void_grubs)",
+                      "expression": "SUM(`red_void_grubs`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "title": "Void Grubs",
+                "showTitle": true,
+                "headerAlignment": "center"
+              },
+              "style": {
+                "fontColor": {
+                  "light": "#a31d1d",
+                  "dark": "#a31d1d"
+                }
+              },
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "sum(red_void_grubs)",
+                  "rowNumber": 0
+                }
+              },
+              "data": {
+                "queryName": "main_query"
+              }
+            }
+          },
+          "position": {
+            "x": 6,
+            "y": 13,
+            "width": 2,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
+            "name": "red_heralds",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "match_dossiers",
+                  "fields": [
+                    {
+                      "name": "sum(red_heralds)",
+                      "expression": "SUM(`red_heralds`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "title": "Heralds",
+                "showTitle": true,
+                "headerAlignment": "center"
+              },
+              "style": {
+                "fontColor": {
+                  "light": "#a31d1d",
+                  "dark": "#a31d1d"
+                }
+              },
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "sum(red_heralds)",
+                  "rowNumber": 0
+                }
+              },
+              "data": {
+                "queryName": "main_query"
+              }
+            }
+          },
+          "position": {
+            "x": 10,
+            "y": 13,
+            "width": 2,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
+            "name": "red_barons",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "match_dossiers",
+                  "fields": [
+                    {
+                      "name": "sum(red_barons)",
+                      "expression": "SUM(`red_barons`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "title": "Barons",
+                "showTitle": true,
+                "headerAlignment": "center"
+              },
+              "style": {
+                "fontColor": {
+                  "light": "#a31d1d",
+                  "dark": "#a31d1d"
+                }
+              },
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "sum(red_barons)",
+                  "rowNumber": 0
+                }
+              },
+              "data": {
+                "queryName": "main_query"
+              }
+            }
+          },
+          "position": {
+            "x": 8,
+            "y": 13,
+            "width": 2,
+            "height": 2
+          }
+        }
+      ],
+      "pageType": "PAGE_TYPE_CANVAS",
+      "layoutVersion": "GRID_V1"
+    }
+  ],
+  "uiSettings": {
+    "theme": {
+      "canvasBackgroundColor": {
+        "light": "#171b26",
+        "dark": "#171b26"
+      },
+      "widgetBackgroundColor": {
+        "light": "#1a1f2e",
+        "dark": "#1a1f2e"
+      },
+      "widgetBorderColor": {
+        "light": "#6a7b83",
+        "dark": "#6a7b83"
+      },
+      "fontColor": {
+        "light": "#FFD700",
+        "dark": "#D0D5DB"
+      },
+      "selectionColor": {
+        "light": "#9ee5f7",
+        "dark": "#9ee5f7"
+      },
+      "widgetHeaderAlignment": "LEFT",
+      "widgetCornerRadius": 0,
+      "widgetShadow": 20,
+      "fontSettings": {
+        "base": {
+          "fontFamily": "JetBrains Mono",
+          "fontColor": {
+            "light": "#d0d5db",
+            "dark": "#d0d5db"
+          },
+          "fontSize": 12
+        },
+        "widgetTitle": {
+          "fontFamily": "JetBrains Mono",
+          "textCase": "TEXT_CASE_UPPERCASE",
+          "fontColor": {
+            "light": "#9ee5f7",
+            "dark": "#9ee5f7"
+          },
+          "fontSize": 14,
+          "fontWeight": 700
+        },
+        "fieldTitle": {
+          "fontFamily": "JetBrains Mono",
+          "textCase": "TEXT_CASE_UPPERCASE",
+          "fontColor": {
+            "light": "#d0d5db",
+            "dark": "#d0d5db"
+          },
+          "fontSize": 11
+        },
+        "fieldValue": {
+          "fontFamily": "JetBrains Mono",
+          "fontColor": {
+            "light": "#d0d5db",
+            "dark": "#d0d5db"
+          },
+          "fontSize": 11
+        }
+      },
+      "gridLineColor": {
+        "light": "#6a7b83",
+        "dark": "#6a7b83"
+      },
+      "axisLineColor": {
+        "light": "#9ee5f7",
+        "dark": "#9ee5f7"
+      }
+    },
+    "applyModeEnabled": false
+  }
+}
