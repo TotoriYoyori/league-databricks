@@ -5,19 +5,19 @@
       "displayName": "Champion Statistics",
       "queryLines": [
         "SELECT\n",
-        "  champion_id,\n",
-        "  champion_name,\n",
-        "  most_picked_lane,\n",
-        "  primary_lane_share,\n",
-        "  global_games_played,\n",
-        "  global_pick_rate,\n",
-        "  global_win_rate,\n",
-        "  global_ban_rate\n",
-        "FROM\n",
-        "  league_records.gold.champion_overviews\n",
-        "ORDER BY\n",
-        "  global_pick_rate DESC"
-      ]
+        "    champion_id,\n",
+        "    champion_name,\n",
+        "    most_picked_lane,\n",
+        "    ROUND(primary_lane_share * 100, 2) AS primary_lane_share,\n",
+        "    global_games_played,\n",
+        "    ROUND(global_pick_rate * 100, 2) AS global_pick_rate,\n",
+        "    ROUND(global_win_rate * 100, 2) AS global_win_rate,\n",
+        "    ROUND(global_ban_rate * 100, 2) AS global_ban_rate\n",
+        "FROM league_records.gold.champion_overviews\n",
+        ";"
+      ],
+      "catalog": "league_records",
+      "schema": "gold"
     }
   ],
   "pages": [
@@ -68,7 +68,7 @@
             "x": 0,
             "y": 0,
             "width": 6,
-            "height": 2
+            "height": 1
           }
         },
         {
@@ -114,7 +114,7 @@
             "x": 6,
             "y": 0,
             "width": 6,
-            "height": 2
+            "height": 1
           }
         },
         {
@@ -155,9 +155,9 @@
           },
           "position": {
             "x": 0,
-            "y": 2,
+            "y": 1,
             "width": 3,
-            "height": 3
+            "height": 2
           }
         },
         {
@@ -181,7 +181,7 @@
             "spec": {
               "version": 2,
               "frame": {
-                "title": "Average Win Rate",
+                "title": "Average Win Rate (%)",
                 "showTitle": true
               },
               "widgetType": "counter",
@@ -198,9 +198,9 @@
           },
           "position": {
             "x": 3,
-            "y": 2,
+            "y": 1,
             "width": 3,
-            "height": 3
+            "height": 2
           }
         },
         {
@@ -224,7 +224,7 @@
             "spec": {
               "version": 2,
               "frame": {
-                "title": "Average Pick Rate",
+                "title": "Average Pick Rate (%)",
                 "showTitle": true
               },
               "widgetType": "counter",
@@ -241,9 +241,9 @@
           },
           "position": {
             "x": 6,
-            "y": 2,
+            "y": 1,
             "width": 3,
-            "height": 3
+            "height": 2
           }
         },
         {
@@ -267,7 +267,7 @@
             "spec": {
               "version": 2,
               "frame": {
-                "title": "Average Ban Rate",
+                "title": "Average Ban Rate (%)",
                 "showTitle": true
               },
               "widgetType": "counter",
@@ -284,9 +284,9 @@
           },
           "position": {
             "x": 9,
-            "y": 2,
+            "y": 1,
             "width": 3,
-            "height": 3
+            "height": 2
           }
         },
         {
@@ -363,9 +363,9 @@
           },
           "position": {
             "x": 0,
-            "y": 5,
+            "y": 3,
             "width": 12,
-            "height": 12
+            "height": 6
           }
         },
         {
@@ -393,24 +393,34 @@
             "spec": {
               "version": 3,
               "frame": {
-                "title": "Top 15 Champions by Pick Rate",
+                "title": "Top 15 Champions by Win Rate",
                 "showTitle": true,
                 "showDescription": false
+              },
+              "mark": {
+                "layout": "stack"
               },
               "widgetType": "bar",
               "encodings": {
                 "x": {
                   "fieldName": "global_pick_rate",
-                  "displayName": "global_pick_rate",
+                  "displayName": "Win Rate (%)",
                   "scale": {
                     "type": "quantitative"
                   }
                 },
                 "y": {
                   "fieldName": "champion_name",
-                  "displayName": "champion_name",
+                  "displayName": "Champion",
                   "scale": {
-                    "type": "categorical"
+                    "type": "categorical",
+                    "categorySize": {
+                      "type": "number-of-categories",
+                      "number": 10
+                    },
+                    "sort": {
+                      "by": "x-reversed"
+                    }
                   }
                 },
                 "color": {
@@ -419,6 +429,9 @@
                   "scale": {
                     "type": "categorical"
                   }
+                },
+                "label": {
+                  "show": true
                 }
               },
               "data": {
@@ -428,7 +441,7 @@
           },
           "position": {
             "x": 0,
-            "y": 17,
+            "y": 9,
             "width": 6,
             "height": 8
           }
@@ -493,7 +506,7 @@
           },
           "position": {
             "x": 6,
-            "y": 17,
+            "y": 9,
             "width": 6,
             "height": 8
           }
@@ -557,7 +570,7 @@
           },
           "position": {
             "x": 0,
-            "y": 25,
+            "y": 17,
             "width": 6,
             "height": 8
           }
@@ -621,7 +634,7 @@
           },
           "position": {
             "x": 6,
-            "y": 25,
+            "y": 17,
             "width": 6,
             "height": 8
           }

@@ -1,13 +1,10 @@
 # League of Legends Data Pipeline 
 
-**Simple production-grade oneshot LoL analytics pipeline built on Databricks.**
+**Simple oneshot LoL analytics pipeline built on Databricks.**
 
-From raw match data to actionable insights: fully automated, reproducible, and portable across workspaces. Featuring a **Bronze → Silver → Gold** medallion architecture.
+1. This project was built on a set of readily available .csv from Kaggle --> [*source*](https://www.kaggle.com/datasets/nathansmallcalder/league-of-legends-match-interval-snapshots-2026/data). The dataset itself was in turn sourced from [*Raw Community Dragon*](https://raw.communitydragon.org/). 
 
-* 📥 **Automated data ingestion** from GitHub releases.
-* 🔄 **Sequential pipeline orchestration** with dependency management  
-* 🏗️ **Infrastructure as Code** — one script to rule them all
-* 🚀 **Zero hardcoded paths or IDs** — clone and run anywhere
+2. This project only ingested all the raw .csv one time and run them through a medallion data pipeline. For a version of this pipeline, deployed on Snowflake, with simulated daily ingestion and incremental loading, see [*here*](https://github.com/TotoriYoyori/league-snowflake).
 
 ---
 
@@ -15,63 +12,37 @@ From raw match data to actionable insights: fully automated, reproducible, and p
 
 ```
 league-databricks/
-│
-├── setup/                                    # Setup & orchestration scripts
-│   ├── 00_catalog_schema.sql                 # Unity Catalog initialization (SQL)
-│   ├── 01_download_files_to_volume.py        # Data ingestion from GitHub (Python)
-│   ├── 02_create_pipeline_job.py             # Pipeline & job creation (Python)
-│   └── _teardown.sql                         # Cleanup script (SQL)
-│
-├── models/                                   # Data transformation layers
-│   ├── bronze/
-│   │   └── transformations/                  # Raw data ingestion (Python/SQL)
-│   ├── silver/
-│   │   └── transformations/                  # Cleaned & conformed data (Python/SQL)
-│   └── gold/
-│       └── transformations/                  # Analytics-ready aggregates (Python/SQL)
-│
-└── README.md                                 # You are here
+├── setup/            # Catalog init, data ingestion, pipeline/job creation
+├── models/
+│   ├── bronze/       # Raw data ingestion
+│   ├── silver/       # Cleaned & conformed data (+ shared utilities)
+│   └── gold/         # Analytics-ready aggregates
+│       # each layer contains transformations/, which is the pipeline source code runnable by Databricks. 
+│       
+├── analytics/        # Ad-hoc notebooks for model iterating
+├── dashboards/       # Lakeview dashboards for fast visualizations
+├── deploy.py         # One-line deployment script
+└── README.md
 ```
+---
+## ✅ Prerequisites to Deploy
 
+* A Databricks workspace with **Unity Catalog enabled** and permission to **create a catalog**.
+* A startable **SQL Warehouse** (`deploy.py` looks for "Serverless Starter Warehouse" by default) as well as any **all-purpose cluster** (including Serverless).
+
+> *Info: A new DataBricks free-edition trial account will give you all the above for free!* 
 ---
 
-## 🚀 Quick Start
+## 🚀 How to Deploy
 
-**Clone this repo to your Databricks workspace**, then run:
-
+1. Clone this repo into your Databricks workspace.
+2. From the **Web Terminal** (attached to Serverless or an all-purpose cluster) **at project root**, run `python deploy.py`, example below:
 ```bash
-# 1. Setup catalog & schema
-python setup/00_catalog_schema.sql
-
-# 2. Download source data  
-python setup/01_download_files_to_volume.py
-
-# 3. Create pipelines & job
-python setup/02_create_pipeline_job.py
+Workspace/Users/<your_email>@<domain.com>/league-databricks$ python deploy.py
 ```
 
-**That's it.** Your end-to-end pipeline is live. 🎉
+That's it. 
 
 ---
 
-## 🎯 Design Principles
-
-* **Portable** — No hardcoded workspace paths or pipeline IDs
-* **Declarative** — Infrastructure defined in code, not UI clicks  
-* **Modular** — Each layer (bronze/silver/gold) is independent
-* **Production-ready** — Triggered pipelines with full dependency management
-
----
-
-## 📊 Data Sources
-
-Match data sourced from Kaggle League of Legends datasets:
-* Champions reference
-* Items reference  
-* Match summaries
-* Player statistics
-* Time-series intervals
-
----
-
-**Built with** ⚡ Databricks | 🐍 Python | 📊 Spark SQL | 🏆 Unity Catalog
+**Built with** --> Databricks | Python | SQL | Unity Catalog

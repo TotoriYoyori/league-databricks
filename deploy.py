@@ -3,7 +3,7 @@ Command help:
     python deploy.py            # run all steps in sequence
     python deploy.py --only 01  # run just one step, by its number prefix
     python deploy.py --from 01  # run from a given step to the end
-    python deploy.py --list     # show available steps
+    python deploy.py --list     # show available step
 """
 
 import argparse
