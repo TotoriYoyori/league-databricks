@@ -40,8 +40,9 @@ league-databricks/
 ```bash
 Workspace/Users/<your_email>@<domain.com>/league-databricks$ python deploy.py
 ```
+3. Go to **Jobs & Pipeline** in your sidebar to the left, click on the newly created **league_csv_etl** job, and you will see a button 'Run Now'. Click on it to start the pipeline. On your first cold start, it **might take up to 20 minutes** for the Serverless cluster to start up and finish, but subsequent warm runs usually take <= 5 minutes.
 
-That's it. 
+That's it! 
 
 ---
 

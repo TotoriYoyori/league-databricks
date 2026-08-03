@@ -19,6 +19,7 @@ STEPS = [
     ("00", SETUP_DIR / "00_catalog_schema.py"),
     ("01", SETUP_DIR / "01_download_files_to_volume.py"),
     ("02", SETUP_DIR / "02_create_pipeline_job.py"),
+    ("03", SETUP_DIR / "03_create_udf.py"),
 ]
 
 
@@ -42,8 +43,6 @@ def run_step(number: str, path: Path) -> None:
     print(f"Running step {number}: {path.name}")
     print(f"{'=' * 60}\n")
 
-    # check=True raises CalledProcessError on nonzero exit, this propagates.
-    # -> The whole sequence halts on first failure.
     subprocess.run([sys.executable, str(path)], check=True)
 
     print(f"\n✅ Step {number} ({path.name}) completed.\n")

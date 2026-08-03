@@ -3,10 +3,15 @@ from databricks.sdk import WorkspaceClient
 from databricks.sdk.service.pipelines import PipelineLibrary, PathPattern
 from databricks.sdk.service.jobs import Job, Task, PipelineTask, TaskDependency
 
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import _common as common
+
 w = WorkspaceClient()
 
 # --------------- 01. Constants ---------------
-CATALOG = "league_records"
 SCHEMA_LAYERS = ['bronze', 'silver', 'gold']
 JOB_NAME = 'league_csv_etl'
 
@@ -40,12 +45,12 @@ def get_or_create_pipeline(name: str, source_glob: str, layer: str) -> str | Non
     print(f"Creating new pipeline: {name}")
     new_pipeline = w.pipelines.create(
         name=name,
-        storage=f"/pipelines/{name}",
         continuous=False,
-        catalog=CATALOG,
+        serverless=True,
+        catalog=common.CATALOG,
         schema=layer,
         libraries=[PipelineLibrary(glob=PathPattern(include=source_glob))],
-        configuration={"catalog": CATALOG, "schema": layer},
+        configuration={"catalog": common.CATALOG, "schema": layer},
     )
     print(f"Created pipeline: {name} ({new_pipeline.pipeline_id})")
     return new_pipeline.pipeline_id
@@ -71,7 +76,7 @@ def create_medallion_job_if_not_exists(
 
     Returns:
         The existing Job object if one with the same name already exists,
-        otherwise the newly created Job object.
+        otherwise the CreateResponse from job creation.
     """
     existing_jobs = list(w.jobs.list(name=job_name))
     if existing_jobs:
@@ -101,7 +106,7 @@ def create_medallion_job_if_not_exists(
     )
     print("✅ Job created successfully!")
     print(f"Job ID: {job.job_id}")
-    print(f"Job Name: {job.settings.name}")
+    print(f"Job Name: {job_name}")
     return job
 
 
@@ -135,3 +140,4 @@ if __name__ == "__main__":
             for layer in SCHEMA_LAYERS
         }
     )
+    
