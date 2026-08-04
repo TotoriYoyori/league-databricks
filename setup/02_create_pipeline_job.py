@@ -104,7 +104,7 @@ def create_medallion_job_if_not_exists(
             ),
         ],
     )
-    print("✅ Job created successfully!")
+    print("  Job created successfully!")
     print(f"Job ID: {job.job_id}")
     print(f"Job Name: {job_name}")
     return job

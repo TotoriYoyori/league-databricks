@@ -106,7 +106,7 @@ if __name__ == "__main__":
 
     print("\n---------- Dropping catalog (and all data within it) ----------")
     run_statement(warehouse_id, DROP_CATALOG_STATEMENT)
-    print(f"✅ Catalog '{CATALOG}' dropped (or did not exist).")
+    print(f"  Catalog '{CATALOG}' dropped (or did not exist).")
 
     print("\n---------- Finding job and pipelines ----------")
     job_id = find_job_id(JOB_NAME)
@@ -132,5 +132,5 @@ if __name__ == "__main__":
         else:
             print(f"Pipeline 'league_{layer}' not found, skipping.")
 
-    print("\n✅ Teardown complete.")
+    print("\n  Teardown complete.")
     

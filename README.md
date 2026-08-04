@@ -1,4 +1,4 @@
-# League of Legends Data Pipeline 
+# League of Legends ETL Data Pipeline 
 
 **Simple oneshot LoL analytics pipeline built on Databricks.**
 
@@ -8,24 +8,27 @@
 
 ---
 
-## 📂 Project Structure
+## Project Structure
 
 ```
 league-databricks/
 ├── setup/            # Catalog init, data ingestion, pipeline/job creation
-├── models/
+├── models/           # each layer shares the same structure, as shown here under bronze/
 │   ├── bronze/       # Raw data ingestion
+│   │   ├── transformations/       # Pipeline source code for table DDL run by Databricks.
+│   │   ├── exploration/           # adhoc query for testings, dry runs and exploration
 │   ├── silver/       # Cleaned & conformed data (+ shared utilities)
 │   └── gold/         # Analytics-ready aggregates
-│       # each layer contains transformations/, which is the pipeline source code runnable by Databricks. 
 │       
-├── analytics/        # Ad-hoc notebooks for model iterating
-├── dashboards/       # Lakeview dashboards for fast visualizations
+├── analytics/                   # Data science workflows example
+│   ├── 01_sample_eda            # EDA analytics with pandas, numpy, matplotlib, seaborn
+│   ├── 02_sample_modelling      # Fitting a model using sklearn
+├── dashboards/       # includes: data browser, data aggregation, and pipeline monitoring
 ├── deploy.py         # One-line deployment script
 └── README.md
 ```
 ---
-## ✅ Prerequisites to Deploy
+## Prerequisites to Deploy
 
 * A Databricks workspace with **Unity Catalog enabled** and permission to **create a catalog**.
 * A startable **SQL Warehouse** (`deploy.py` looks for "Serverless Starter Warehouse" by default) as well as any **all-purpose cluster** (including Serverless).
@@ -33,7 +36,7 @@ league-databricks/
 > *Info: A new DataBricks free-edition trial account will give you all the above for free!* 
 ---
 
-## 🚀 How to Deploy
+## How to Deploy
 
 1. Clone this repo into your Databricks workspace.
 2. From the **Web Terminal** (attached to Serverless or an all-purpose cluster) **at project root**, run `python deploy.py`, example below:

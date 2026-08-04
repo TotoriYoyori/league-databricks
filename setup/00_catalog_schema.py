@@ -42,5 +42,5 @@ if __name__ == "__main__":
     for stmt in STATEMENTS:
         common.run_statement(warehouse_id, stmt)
 
-    print("✅ Catalog, schemas, and volume created (or already existed).")
+    print("  Catalog, schemas, and volume created (or already existed).")
     

@@ -80,4 +80,4 @@ if __name__ == "__main__":
         dest_path = VOLUME_DIR / subfolder / filename
         download_file_if_not_exists(url, dest_path)
 
-    print("\n✅ Done.")
+    print("\n  Done.")

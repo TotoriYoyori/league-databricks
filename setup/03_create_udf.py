@@ -82,5 +82,5 @@ if __name__ == "__main__":
     for stmt in STATEMENTS:
         common.run_statement(warehouse_id, stmt, catalog=common.CATALOG, schema=SCHEMA)
 
-    print("\n✅ UDFs created (or already existed).")
+    print("\n  UDFs created (or already existed).")
     

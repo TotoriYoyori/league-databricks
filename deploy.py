@@ -45,7 +45,7 @@ def run_step(number: str, path: Path) -> None:
 
     subprocess.run([sys.executable, str(path)], check=True)
 
-    print(f"\n✅ Step {number} ({path.name}) completed.\n")
+    print(f"\n  Step {number} ({path.name}) completed.\n")
 
 
 # --------------- 03. Main ---------------
@@ -92,7 +92,7 @@ def main() -> None:
     for number, path in steps_to_run:
         run_step(number, path)
 
-    print("\n🎉 All steps completed successfully!")
+    print("\n  All steps completed successfully!")
 
 
 if __name__ == "__main__":
