@@ -934,264 +934,6 @@
       "layoutVersion": "GRID_V1"
     },
     {
-      "name": "4eb31d01",
-      "displayName": "Item Recommendations",
-      "layout": [
-        {
-          "widget": {
-            "name": "filter_champion",
-            "queries": [
-              {
-                "name": "dashboards/01f189016fab1b949dd465725aba6b99/datasets/01f18f54464e124ea6a549884d48713b_champion_name",
-                "query": {
-                  "datasetName": "item_recommendations_main",
-                  "fields": [
-                    {
-                      "name": "champion_name",
-                      "expression": "`champion_name`"
-                    },
-                    {
-                      "name": "champion_name_associativity",
-                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
-                    }
-                  ],
-                  "disaggregated": false
-                }
-              }
-            ],
-            "spec": {
-              "version": 2,
-              "frame": {
-                "title": "Champion Filter",
-                "showTitle": true
-              },
-              "widgetType": "filter-multi-select",
-              "encodings": {
-                "fields": [
-                  {
-                    "fieldName": "champion_name",
-                    "queryName": "dashboards/01f189016fab1b949dd465725aba6b99/datasets/01f18f54464e124ea6a549884d48713b_champion_name"
-                  }
-                ]
-              }
-            }
-          },
-          "position": {
-            "x": 0,
-            "y": 0,
-            "width": 6,
-            "height": 1
-          }
-        },
-        {
-          "widget": {
-            "name": "filter_category",
-            "queries": [
-              {
-                "name": "dashboards/01f189016fab1b949dd465725aba6b99/datasets/01f18f54464e124ea6a549884d48713b_item_category",
-                "query": {
-                  "datasetName": "item_recommendations_main",
-                  "fields": [
-                    {
-                      "name": "item_category",
-                      "expression": "`item_category`"
-                    },
-                    {
-                      "name": "item_category_associativity",
-                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
-                    }
-                  ],
-                  "disaggregated": false
-                }
-              }
-            ],
-            "spec": {
-              "version": 2,
-              "frame": {
-                "title": "Item Category Filter",
-                "showTitle": true
-              },
-              "widgetType": "filter-multi-select",
-              "encodings": {
-                "fields": [
-                  {
-                    "fieldName": "item_category",
-                    "queryName": "dashboards/01f189016fab1b949dd465725aba6b99/datasets/01f18f54464e124ea6a549884d48713b_item_category"
-                  }
-                ]
-              }
-            }
-          },
-          "position": {
-            "x": 6,
-            "y": 0,
-            "width": 6,
-            "height": 1
-          }
-        },
-        {
-          "widget": {
-            "name": "table_item_stats",
-            "queries": [
-              {
-                "name": "main_query",
-                "query": {
-                  "datasetName": "item_recommendations_main",
-                  "fields": [
-                    {
-                      "name": "item_name",
-                      "expression": "`item_name`"
-                    },
-                    {
-                      "name": "item_category",
-                      "expression": "`item_category`"
-                    },
-                    {
-                      "name": "purchase_rate_pct",
-                      "expression": "`purchase_rate_pct`"
-                    },
-                    {
-                      "name": "win_rate_pct",
-                      "expression": "`win_rate_pct`"
-                    },
-                    {
-                      "name": "avg_kda",
-                      "expression": "`avg_kda`"
-                    },
-                    {
-                      "name": "most_common_first_purchase_minute",
-                      "expression": "`most_common_first_purchase_minute`"
-                    }
-                  ],
-                  "disaggregated": true
-                }
-              }
-            ],
-            "spec": {
-              "version": 2,
-              "frame": {
-                "title": "Item Statistics",
-                "showTitle": true
-              },
-              "widgetType": "table",
-              "encodings": {
-                "columns": [
-                  {
-                    "fieldName": "item_name"
-                  },
-                  {
-                    "fieldName": "item_category"
-                  },
-                  {
-                    "fieldName": "purchase_rate_pct"
-                  },
-                  {
-                    "fieldName": "win_rate_pct"
-                  },
-                  {
-                    "fieldName": "avg_kda"
-                  },
-                  {
-                    "fieldName": "most_common_first_purchase_minute"
-                  }
-                ]
-              },
-              "data": {
-                "queryName": "main_query"
-              }
-            }
-          },
-          "position": {
-            "x": 0,
-            "y": 8,
-            "width": 12,
-            "height": 7
-          }
-        },
-        {
-          "widget": {
-            "name": "table_builds",
-            "queries": [
-              {
-                "name": "main_query",
-                "query": {
-                  "datasetName": "item_recommendations_main",
-                  "fields": [
-                    {
-                      "name": "item_name",
-                      "expression": "`item_name`"
-                    },
-                    {
-                      "name": "top_item_1",
-                      "expression": "`top_item_1`"
-                    },
-                    {
-                      "name": "top_item_2",
-                      "expression": "`top_item_2`"
-                    },
-                    {
-                      "name": "top_item_3",
-                      "expression": "`top_item_3`"
-                    },
-                    {
-                      "name": "purchase_rate_pct",
-                      "expression": "`purchase_rate_pct`"
-                    },
-                    {
-                      "name": "win_rate_pct",
-                      "expression": "`win_rate_pct`"
-                    }
-                  ],
-                  "disaggregated": true
-                }
-              }
-            ],
-            "spec": {
-              "version": 2,
-              "frame": {
-                "title": "Item Build Recommendations",
-                "showTitle": true
-              },
-              "widgetType": "table",
-              "encodings": {
-                "columns": [
-                  {
-                    "fieldName": "item_name"
-                  },
-                  {
-                    "fieldName": "top_item_1"
-                  },
-                  {
-                    "fieldName": "top_item_2"
-                  },
-                  {
-                    "fieldName": "top_item_3"
-                  },
-                  {
-                    "fieldName": "purchase_rate_pct"
-                  },
-                  {
-                    "fieldName": "win_rate_pct"
-                  }
-                ]
-              },
-              "data": {
-                "queryName": "main_query"
-              }
-            }
-          },
-          "position": {
-            "x": 0,
-            "y": 1,
-            "width": 12,
-            "height": 7
-          }
-        }
-      ],
-      "pageType": "PAGE_TYPE_CANVAS",
-      "layoutVersion": "GRID_V1"
-    },
-    {
       "name": "9e8a6a53",
       "displayName": "Match Browser",
       "layout": [
@@ -2310,6 +2052,264 @@
             "y": 13,
             "width": 2,
             "height": 2
+          }
+        }
+      ],
+      "pageType": "PAGE_TYPE_CANVAS",
+      "layoutVersion": "GRID_V1"
+    },
+    {
+      "name": "4eb31d01",
+      "displayName": "PIpeline Health",
+      "layout": [
+        {
+          "widget": {
+            "name": "filter_champion",
+            "queries": [
+              {
+                "name": "dashboards/01f189016fab1b949dd465725aba6b99/datasets/01f18f54464e124ea6a549884d48713b_champion_name",
+                "query": {
+                  "datasetName": "item_recommendations_main",
+                  "fields": [
+                    {
+                      "name": "champion_name",
+                      "expression": "`champion_name`"
+                    },
+                    {
+                      "name": "champion_name_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "title": "Champion Filter",
+                "showTitle": true
+              },
+              "widgetType": "filter-multi-select",
+              "encodings": {
+                "fields": [
+                  {
+                    "fieldName": "champion_name",
+                    "queryName": "dashboards/01f189016fab1b949dd465725aba6b99/datasets/01f18f54464e124ea6a549884d48713b_champion_name"
+                  }
+                ]
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 0,
+            "width": 6,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "filter_category",
+            "queries": [
+              {
+                "name": "dashboards/01f189016fab1b949dd465725aba6b99/datasets/01f18f54464e124ea6a549884d48713b_item_category",
+                "query": {
+                  "datasetName": "item_recommendations_main",
+                  "fields": [
+                    {
+                      "name": "item_category",
+                      "expression": "`item_category`"
+                    },
+                    {
+                      "name": "item_category_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "title": "Item Category Filter",
+                "showTitle": true
+              },
+              "widgetType": "filter-multi-select",
+              "encodings": {
+                "fields": [
+                  {
+                    "fieldName": "item_category",
+                    "queryName": "dashboards/01f189016fab1b949dd465725aba6b99/datasets/01f18f54464e124ea6a549884d48713b_item_category"
+                  }
+                ]
+              }
+            }
+          },
+          "position": {
+            "x": 6,
+            "y": 0,
+            "width": 6,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "table_item_stats",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "item_recommendations_main",
+                  "fields": [
+                    {
+                      "name": "item_name",
+                      "expression": "`item_name`"
+                    },
+                    {
+                      "name": "item_category",
+                      "expression": "`item_category`"
+                    },
+                    {
+                      "name": "purchase_rate_pct",
+                      "expression": "`purchase_rate_pct`"
+                    },
+                    {
+                      "name": "win_rate_pct",
+                      "expression": "`win_rate_pct`"
+                    },
+                    {
+                      "name": "avg_kda",
+                      "expression": "`avg_kda`"
+                    },
+                    {
+                      "name": "most_common_first_purchase_minute",
+                      "expression": "`most_common_first_purchase_minute`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "title": "Item Statistics",
+                "showTitle": true
+              },
+              "widgetType": "table",
+              "encodings": {
+                "columns": [
+                  {
+                    "fieldName": "item_name"
+                  },
+                  {
+                    "fieldName": "item_category"
+                  },
+                  {
+                    "fieldName": "purchase_rate_pct"
+                  },
+                  {
+                    "fieldName": "win_rate_pct"
+                  },
+                  {
+                    "fieldName": "avg_kda"
+                  },
+                  {
+                    "fieldName": "most_common_first_purchase_minute"
+                  }
+                ]
+              },
+              "data": {
+                "queryName": "main_query"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 8,
+            "width": 12,
+            "height": 7
+          }
+        },
+        {
+          "widget": {
+            "name": "table_builds",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "item_recommendations_main",
+                  "fields": [
+                    {
+                      "name": "item_name",
+                      "expression": "`item_name`"
+                    },
+                    {
+                      "name": "top_item_1",
+                      "expression": "`top_item_1`"
+                    },
+                    {
+                      "name": "top_item_2",
+                      "expression": "`top_item_2`"
+                    },
+                    {
+                      "name": "top_item_3",
+                      "expression": "`top_item_3`"
+                    },
+                    {
+                      "name": "purchase_rate_pct",
+                      "expression": "`purchase_rate_pct`"
+                    },
+                    {
+                      "name": "win_rate_pct",
+                      "expression": "`win_rate_pct`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "title": "Item Build Recommendations",
+                "showTitle": true
+              },
+              "widgetType": "table",
+              "encodings": {
+                "columns": [
+                  {
+                    "fieldName": "item_name"
+                  },
+                  {
+                    "fieldName": "top_item_1"
+                  },
+                  {
+                    "fieldName": "top_item_2"
+                  },
+                  {
+                    "fieldName": "top_item_3"
+                  },
+                  {
+                    "fieldName": "purchase_rate_pct"
+                  },
+                  {
+                    "fieldName": "win_rate_pct"
+                  }
+                ]
+              },
+              "data": {
+                "queryName": "main_query"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 1,
+            "width": 12,
+            "height": 7
           }
         }
       ],
