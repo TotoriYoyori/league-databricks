@@ -20,99 +20,6 @@
       "schema": "gold"
     },
     {
-      "name": "purchase_timing_top_items",
-      "displayName": "Purchase Timing - Top Items",
-      "queryLines": [
-        "WITH top_items AS (\n",
-        "  SELECT\n",
-        "    item_name\n",
-        "  FROM\n",
-        "    league_records.gold.item_recommendations\n",
-        "  GROUP BY\n",
-        "    item_name\n",
-        "  ORDER BY\n",
-        "    AVG(player_purchase_rate) DESC\n",
-        "  LIMIT 15\n",
-        ")\n",
-        "SELECT\n",
-        "  ir.item_name,\n",
-        "  AVG(ir.most_common_first_purchase_minute) AS avg_purchase_minute\n",
-        "FROM\n",
-        "  league_records.gold.item_recommendations ir\n",
-        "    INNER JOIN top_items ti\n",
-        "      ON ir.item_name = ti.item_name\n",
-        "GROUP BY\n",
-        "  ir.item_name\n",
-        "ORDER BY\n",
-        "  AVG(ir.most_common_first_purchase_minute) ASC"
-      ]
-    },
-    {
-      "name": "item_overview_counters",
-      "displayName": "Item Overview Counters",
-      "queryLines": [
-        "SELECT\n",
-        "  COUNT(DISTINCT item_name) AS total_unique_items,\n",
-        "  COUNT(DISTINCT champion_name) AS total_champions,\n",
-        "  ROUND(AVG(win_rate) * 100, 2) AS avg_win_rate_pct\n",
-        "FROM\n",
-        "  league_records.gold.item_recommendations"
-      ]
-    },
-    {
-      "name": "top_15_items_winrate",
-      "displayName": "Top 15 Items by Win Rate",
-      "queryLines": [
-        "SELECT\n",
-        "  champion_name,\n",
-        "  item_name,\n",
-        "  item_category,\n",
-        "  ROUND(AVG(win_rate) * 100, 2) AS win_rate_pct\n",
-        "FROM\n",
-        "  league_records.gold.item_recommendations\n",
-        "GROUP BY\n",
-        "  champion_name,\n",
-        "  item_name,\n",
-        "  item_category"
-      ]
-    },
-    {
-      "name": "item_recommendations_main",
-      "displayName": "Item Recommendations - Main",
-      "queryLines": [
-        "SELECT\n",
-        "  champion_name,\n",
-        "  item_name,\n",
-        "  item_category,\n",
-        "  ROUND(player_purchase_rate * 100, 2) AS purchase_rate_pct,\n",
-        "  ROUND(win_rate * 100, 2) AS win_rate_pct,\n",
-        "  ROUND(avg_kda, 2) AS avg_kda,\n",
-        "  most_common_first_purchase_minute,\n",
-        "  top_item_1,\n",
-        "  top_item_2,\n",
-        "  top_item_3\n",
-        "FROM\n",
-        "  league_records.gold.item_recommendations"
-      ]
-    },
-    {
-      "name": "top_15_items_purchase",
-      "displayName": "Top 15 Items by Purchase Rate",
-      "queryLines": [
-        "SELECT\n",
-        "  champion_name,\n",
-        "  item_name,\n",
-        "  item_category,\n",
-        "  ROUND(AVG(player_purchase_rate) * 100, 2) AS purchase_rate_pct\n",
-        "FROM\n",
-        "  league_records.gold.item_recommendations\n",
-        "GROUP BY\n",
-        "  champion_name,\n",
-        "  item_name,\n",
-        "  item_category"
-      ]
-    },
-    {
       "name": "match_browser_main",
       "displayName": "Match Browser - Main",
       "queryLines": [
@@ -223,6 +130,155 @@
         "  league_records.gold.matchend_pivot_teamstats\n",
         "ORDER BY\n",
         "  game_date DESC"
+      ]
+    },
+    {
+      "name": "pipeline_quality",
+      "displayName": "Pipeline Data Quality",
+      "queryLines": [
+        "SELECT\n",
+        "  'Player Stats' AS dataset,\n",
+        "  COUNT(*) AS total_records,\n",
+        "  COUNT(\n",
+        "    CASE\n",
+        "      WHEN unlogged_duration > 300 THEN 1\n",
+        "    END\n",
+        "  ) AS stale_records,\n",
+        "  ROUND(\n",
+        "    COUNT(\n",
+        "      CASE\n",
+        "        WHEN unlogged_duration > 300 THEN 1\n",
+        "      END\n",
+        "    )\n",
+        "      * 100.0\n",
+        "      / COUNT(*),\n",
+        "    2\n",
+        "  ) AS stale_pct,\n",
+        "  AVG(unlogged_duration) AS avg_unlogged_duration\n",
+        "FROM\n",
+        "  league_records.gold.matchend_player_stats\n",
+        "UNION ALL\n",
+        "SELECT\n",
+        "  'Team Stats' AS dataset,\n",
+        "  COUNT(*) AS total_records,\n",
+        "  COUNT(\n",
+        "    CASE\n",
+        "      WHEN unlogged_duration > 300 THEN 1\n",
+        "    END\n",
+        "  ) AS stale_records,\n",
+        "  ROUND(\n",
+        "    COUNT(\n",
+        "      CASE\n",
+        "        WHEN unlogged_duration > 300 THEN 1\n",
+        "      END\n",
+        "    )\n",
+        "      * 100.0\n",
+        "      / COUNT(*),\n",
+        "    2\n",
+        "  ) AS stale_pct,\n",
+        "  AVG(unlogged_duration) AS avg_unlogged_duration\n",
+        "FROM\n",
+        "  league_records.gold.matchend_pivot_teamstats"
+      ]
+    },
+    {
+      "name": "pipeline_lineage",
+      "displayName": "Pipeline Activity",
+      "queryLines": [
+        "SELECT\n",
+        "  DATE(event_time) AS activity_date,\n",
+        "  target_table_full_name,\n",
+        "  COUNT(DISTINCT entity_run_id) AS update_count\n",
+        "FROM\n",
+        "  system.access.table_lineage\n",
+        "WHERE\n",
+        "  target_table_catalog = 'league_records'\n",
+        "  AND entity_type = 'PIPELINE'\n",
+        "  AND event_date >= CURRENT_DATE() - INTERVAL 30 DAYS\n",
+        "GROUP BY\n",
+        "  DATE(event_time),\n",
+        "  target_table_full_name\n",
+        "ORDER BY\n",
+        "  activity_date DESC"
+      ]
+    },
+    {
+      "name": "pipeline_freshness",
+      "displayName": "Pipeline Data Freshness",
+      "queryLines": [
+        "WITH latest_bronze AS (\n",
+        "  SELECT\n",
+        "    'Bronze' AS layer,\n",
+        "    MAX(game_date) AS latest_date,\n",
+        "    COUNT(*) AS match_count\n",
+        "  FROM\n",
+        "    league_records.bronze.matches\n",
+        "),\n",
+        "latest_silver AS (\n",
+        "  SELECT\n",
+        "    'Silver' AS layer,\n",
+        "    MAX(game_date) AS latest_date,\n",
+        "    COUNT(*) AS match_count\n",
+        "  FROM\n",
+        "    league_records.silver.matches\n",
+        "),\n",
+        "latest_gold AS (\n",
+        "  SELECT\n",
+        "    'Gold' AS layer,\n",
+        "    MAX(game_date) AS latest_date,\n",
+        "    COUNT(*) AS match_count\n",
+        "  FROM\n",
+        "    league_records.gold.matchend_pivot_teamstats\n",
+        ")\n",
+        "SELECT\n",
+        "  *\n",
+        "FROM\n",
+        "  latest_bronze\n",
+        "UNION ALL\n",
+        "SELECT\n",
+        "  *\n",
+        "FROM\n",
+        "  latest_silver\n",
+        "UNION ALL\n",
+        "SELECT\n",
+        "  *\n",
+        "FROM\n",
+        "  latest_gold"
+      ]
+    },
+    {
+      "name": "pipeline_volumes",
+      "displayName": "Pipeline Data Volumes",
+      "queryLines": [
+        "SELECT\n",
+        "  'Bronze Matches' AS table_name,\n",
+        "  COUNT(*) AS record_count\n",
+        "FROM\n",
+        "  league_records.bronze.matches\n",
+        "UNION ALL\n",
+        "SELECT\n",
+        "  'Bronze Intervals' AS table_name,\n",
+        "  COUNT(*) AS record_count\n",
+        "FROM\n",
+        "  league_records.bronze.intervals\n",
+        "UNION ALL\n",
+        "SELECT\n",
+        "  'Silver Matches' AS table_name,\n",
+        "  COUNT(*) AS record_count\n",
+        "FROM\n",
+        "  league_records.silver.matches\n",
+        "UNION ALL\n",
+        "SELECT\n",
+        "  'Gold Player Stats' AS table_name,\n",
+        "  COUNT(*) AS record_count\n",
+        "FROM\n",
+        "  league_records.gold.matchend_player_stats\n",
+        "UNION ALL\n",
+        "SELECT\n",
+        "  'Gold Champion Stats' AS table_name,\n",
+        "  COUNT(*) AS record_count\n",
+        "FROM\n",
+        "  league_records.gold.champion_overviews"
       ]
     }
   ],
@@ -2064,66 +2120,234 @@
       "layout": [
         {
           "widget": {
-            "name": "filter_champion",
-            "queries": [
-              {
-                "name": "dashboards/01f189016fab1b949dd465725aba6b99/datasets/01f18f54464e124ea6a549884d48713b_champion_name",
-                "query": {
-                  "datasetName": "item_recommendations_main",
-                  "fields": [
-                    {
-                      "name": "champion_name",
-                      "expression": "`champion_name`"
-                    },
-                    {
-                      "name": "champion_name_associativity",
-                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
-                    }
-                  ],
-                  "disaggregated": false
-                }
-              }
-            ],
-            "spec": {
-              "version": 2,
-              "frame": {
-                "title": "Champion Filter",
-                "showTitle": true
-              },
-              "widgetType": "filter-multi-select",
-              "encodings": {
-                "fields": [
-                  {
-                    "fieldName": "champion_name",
-                    "queryName": "dashboards/01f189016fab1b949dd465725aba6b99/datasets/01f18f54464e124ea6a549884d48713b_champion_name"
-                  }
-                ]
-              }
+            "name": "header",
+            "multilineTextboxSpec": {
+              "lines": [
+                "# <span style=\"text-align:center;display:block;color:#9ee5f7;text-transform:uppercase;letter-spacing:2px\">LEAGUE DATA PIPELINE HEALTH</span>\n",
+                "\n",
+                "<span style=\"text-align:center;display:block\">Real-time monitoring of Bronze → Silver → Gold data pipelines</span>"
+              ]
             }
           },
           "position": {
             "x": 0,
             "y": 0,
+            "width": 12,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
+            "name": "total_matches",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "pipeline_freshness",
+                  "fields": [
+                    {
+                      "name": "match_count",
+                      "expression": "`match_count`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "title": "Total Match Count",
+                "showTitle": true
+              },
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "match_count"
+                }
+              },
+              "data": {
+                "queryName": "main_query"
+              }
+            }
+          },
+          "position": {
+            "x": 9,
+            "y": 2,
+            "width": 3,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
+            "name": "freshness_table",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "pipeline_freshness",
+                  "fields": [
+                    {
+                      "name": "layer",
+                      "expression": "`layer`"
+                    },
+                    {
+                      "name": "latest_date",
+                      "expression": "`latest_date`"
+                    },
+                    {
+                      "name": "match_count",
+                      "expression": "`match_count`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "title": "Layer Freshness Details",
+                "showTitle": true
+              },
+              "widgetType": "table",
+              "encodings": {
+                "columns": [
+                  {
+                    "fieldName": "layer"
+                  },
+                  {
+                    "fieldName": "latest_date"
+                  },
+                  {
+                    "fieldName": "match_count"
+                  }
+                ]
+              },
+              "data": {
+                "queryName": "main_query"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 18,
             "width": 6,
+            "height": 3
+          }
+        },
+        {
+          "widget": {
+            "name": "bronze_freshness",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "pipeline_freshness",
+                  "fields": [
+                    {
+                      "name": "latest_date",
+                      "expression": "`latest_date`"
+                    }
+                  ],
+                  "filters": [
+                    {
+                      "expression": "`layer` = 'Bronze'"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "title": "LATEST MATCH DATE",
+                "showTitle": true
+              },
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "latest_date",
+                  "rowNumber": 0
+                }
+              },
+              "data": {
+                "queryName": "main_query"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 2,
+            "width": 9,
             "height": 1
           }
         },
         {
           "widget": {
-            "name": "filter_category",
+            "name": "gold_freshness",
             "queries": [
               {
-                "name": "dashboards/01f189016fab1b949dd465725aba6b99/datasets/01f18f54464e124ea6a549884d48713b_item_category",
+                "name": "main_query",
                 "query": {
-                  "datasetName": "item_recommendations_main",
+                  "datasetName": "pipeline_freshness",
                   "fields": [
                     {
-                      "name": "item_category",
-                      "expression": "`item_category`"
+                      "name": "latest_date",
+                      "expression": "`latest_date`"
+                    }
+                  ],
+                  "filters": [
+                    {
+                      "expression": "`layer` = 'Gold'"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "title": "Gold Layer - Latest Match",
+                "showTitle": true
+              },
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "latest_date",
+                  "rowNumber": 0
+                }
+              },
+              "data": {
+                "queryName": "main_query"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 3,
+            "width": 9,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "volume_chart",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "pipeline_volumes",
+                  "fields": [
+                    {
+                      "name": "table_name",
+                      "expression": "`table_name`"
                     },
                     {
-                      "name": "item_category_associativity",
-                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                      "name": "sum(record_count)",
+                      "expression": "SUM(`record_count`)"
                     }
                   ],
                   "disaggregated": false
@@ -2131,61 +2355,75 @@
               }
             ],
             "spec": {
-              "version": 2,
+              "version": 3,
               "frame": {
-                "title": "Item Category Filter",
+                "title": "Record Counts by Table",
                 "showTitle": true
               },
-              "widgetType": "filter-multi-select",
+              "widgetType": "bar",
               "encodings": {
-                "fields": [
-                  {
-                    "fieldName": "item_category",
-                    "queryName": "dashboards/01f189016fab1b949dd465725aba6b99/datasets/01f18f54464e124ea6a549884d48713b_item_category"
+                "x": {
+                  "fieldName": "table_name",
+                  "displayName": "table_name",
+                  "scale": {
+                    "type": "categorical"
                   }
-                ]
+                },
+                "y": {
+                  "fieldName": "sum(record_count)",
+                  "displayName": "record_count",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                },
+                "color": {
+                  "fieldName": "table_name",
+                  "displayName": "table_name",
+                  "scale": {
+                    "type": "categorical"
+                  }
+                }
+              },
+              "data": {
+                "queryName": "main_query"
               }
             }
           },
           "position": {
             "x": 6,
-            "y": 0,
+            "y": 13,
             "width": 6,
-            "height": 1
+            "height": 6
           }
         },
         {
           "widget": {
-            "name": "table_item_stats",
+            "name": "quality_table",
             "queries": [
               {
                 "name": "main_query",
                 "query": {
-                  "datasetName": "item_recommendations_main",
+                  "datasetName": "pipeline_quality",
                   "fields": [
                     {
-                      "name": "item_name",
-                      "expression": "`item_name`"
+                      "name": "dataset",
+                      "expression": "`dataset`"
                     },
                     {
-                      "name": "item_category",
-                      "expression": "`item_category`"
+                      "name": "total_records",
+                      "expression": "`total_records`"
                     },
                     {
-                      "name": "purchase_rate_pct",
-                      "expression": "`purchase_rate_pct`"
+                      "name": "stale_records",
+                      "expression": "`stale_records`"
                     },
                     {
-                      "name": "win_rate_pct",
-                      "expression": "`win_rate_pct`"
+                      "name": "stale_pct",
+                      "expression": "`stale_pct`"
                     },
                     {
-                      "name": "avg_kda",
-                      "expression": "`avg_kda`"
-                    },
-                    {
-                      "name": "most_common_first_purchase_minute",
-                      "expression": "`most_common_first_purchase_minute`"
+                      "name": "avg_unlogged_duration",
+                      "expression": "`avg_unlogged_duration`"
                     }
                   ],
                   "disaggregated": true
@@ -2195,29 +2433,26 @@
             "spec": {
               "version": 2,
               "frame": {
-                "title": "Item Statistics",
+                "title": "Data Quality Metrics",
                 "showTitle": true
               },
               "widgetType": "table",
               "encodings": {
                 "columns": [
                   {
-                    "fieldName": "item_name"
+                    "fieldName": "dataset"
                   },
                   {
-                    "fieldName": "item_category"
+                    "fieldName": "total_records"
                   },
                   {
-                    "fieldName": "purchase_rate_pct"
+                    "fieldName": "stale_records"
                   },
                   {
-                    "fieldName": "win_rate_pct"
+                    "fieldName": "stale_pct"
                   },
                   {
-                    "fieldName": "avg_kda"
-                  },
-                  {
-                    "fieldName": "most_common_first_purchase_minute"
+                    "fieldName": "avg_unlogged_duration"
                   }
                 ]
               },
@@ -2228,77 +2463,66 @@
           },
           "position": {
             "x": 0,
-            "y": 8,
-            "width": 12,
-            "height": 7
+            "y": 13,
+            "width": 6,
+            "height": 5
           }
         },
         {
           "widget": {
-            "name": "table_builds",
+            "name": "activity_chart",
             "queries": [
               {
                 "name": "main_query",
                 "query": {
-                  "datasetName": "item_recommendations_main",
+                  "datasetName": "pipeline_lineage",
                   "fields": [
                     {
-                      "name": "item_name",
-                      "expression": "`item_name`"
+                      "name": "target_table_full_name",
+                      "expression": "`target_table_full_name`"
                     },
                     {
-                      "name": "top_item_1",
-                      "expression": "`top_item_1`"
+                      "name": "daily(activity_date)",
+                      "expression": "DATE_TRUNC(\"DAY\", `activity_date`)"
                     },
                     {
-                      "name": "top_item_2",
-                      "expression": "`top_item_2`"
-                    },
-                    {
-                      "name": "top_item_3",
-                      "expression": "`top_item_3`"
-                    },
-                    {
-                      "name": "purchase_rate_pct",
-                      "expression": "`purchase_rate_pct`"
-                    },
-                    {
-                      "name": "win_rate_pct",
-                      "expression": "`win_rate_pct`"
+                      "name": "sum(update_count)",
+                      "expression": "SUM(`update_count`)"
                     }
                   ],
-                  "disaggregated": true
+                  "disaggregated": false
                 }
               }
             ],
             "spec": {
-              "version": 2,
+              "version": 3,
               "frame": {
-                "title": "Item Build Recommendations",
+                "title": "Pipeline Update Activity (Last 30 Days)",
                 "showTitle": true
               },
-              "widgetType": "table",
+              "widgetType": "line",
               "encodings": {
-                "columns": [
-                  {
-                    "fieldName": "item_name"
-                  },
-                  {
-                    "fieldName": "top_item_1"
-                  },
-                  {
-                    "fieldName": "top_item_2"
-                  },
-                  {
-                    "fieldName": "top_item_3"
-                  },
-                  {
-                    "fieldName": "purchase_rate_pct"
-                  },
-                  {
-                    "fieldName": "win_rate_pct"
+                "x": {
+                  "fieldName": "daily(activity_date)",
+                  "displayName": "Day",
+                  "scale": {
+                    "type": "temporal"
                   }
-                ]
+                },
+                "y": {
+                  "fieldName": "sum(update_count)",
+                  "displayName": "Update Count",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                },
+                "color": {
+                  "fieldName": "target_table_full_name",
+                  "displayName": "Table",
+                  "scale": {
+                    "type": "categorical"
+                  }
+                }
               },
               "data": {
                 "queryName": "main_query"
@@ -2307,9 +2531,9 @@
           },
           "position": {
             "x": 0,
-            "y": 1,
+            "y": 4,
             "width": 12,
-            "height": 7
+            "height": 9
           }
         }
       ],

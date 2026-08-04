@@ -7,9 +7,16 @@
 # MAGIC %md
 # MAGIC # EDA: Match-End Player Statistics
 # MAGIC
-# MAGIC The `gold.matchend_player_stats` table captures performance metrics for every participant in recorded League of Legends matches. Each row represents **one player in one match**, identified by `match_id` and `participant_pos_id` (position 1-5 for Blue side, 6-10 for Red side).
+# MAGIC The `gold.matchend_player_stats` table captures performance metrics for every participant in recorded League of Legends matches. Each row represents one player in one match, identified by `match_id` and `participant_pos_id` (position 1-5 for Blue side, 6-10 for Red side).
 # MAGIC
-# MAGIC ----
+# MAGIC ## Content
+# MAGIC
+# MAGIC 1. Check data quality: completeness, uniqueness, and staleness of the underlying records
+# MAGIC 2. Measure competitive balance across side (Blue/Red) and role
+# MAGIC 3. Benchmark performance (KDA, CS) by role
+# MAGIC 4. Examine how economy (gold) relates to match outcome
+# MAGIC 5. Surface the strongest correlates of winning
+# MAGIC 6. Land on plain-language takeaways for stakeholders
 # MAGIC
 # MAGIC ## Table Schema
 # MAGIC
@@ -25,31 +32,36 @@
 # MAGIC - `cs` INT (combined lane + jungle creep score)
 # MAGIC - `total_gold` INT (cumulative gold earned)
 # MAGIC - `item_build` ARRAY<STRING> (final item names)
-# MAGIC - `unlogged_duration` INT (seconds between last logged 5-min interval and actual match end —
-# MAGIC   data quality signal indicating staleness; stats are sampled every 5 minutes, not true game-end state)
+# MAGIC - `unlogged_duration` INT (seconds between last logged 5-minute interval and actual match end)
 # MAGIC
-# MAGIC ----
-# MAGIC
-# MAGIC ## Known Data Limitation
-# MAGIC
-# MAGIC
-# MAGIC ⚠️ **Important**: Stats reflect the last logged 5-minute sampling interval, not the precise moment the match ended. The `unlogged_duration` column measures the gap (in seconds) between the last logged interval and actual match end. `Higher unlogged_duration` values indicate staleness—for example, a 180-second gap means stats were captured 3 minutes before the Nexus fell, potentially missing final skirmishes, items purchased, or level-ups.
+# MAGIC **A note on data quality:** stats reflect the last logged 5-minute sampling interval, not the precise moment the match ended. `unlogged_duration` measures the gap, in seconds, between the last logged interval and actual match end. Higher values mean: staler records, potentially missing final skirmishes, item purchases, or level-ups.
 
 # COMMAND ----------
 
-# DBTITLE 1,Setup & Imports
+# DBTITLE 1,Import dependencies
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
-from pyspark.sql import functions as F
 
-sns.set_palette("husl")
-sns.set_style("whitegrid")
-plt.rcParams['figure.figsize'] = (12, 6)
+sns.set_theme(style='dark')
 
-spark.sql("USE CATALOG league_records")
-spark.sql("USE SCHEMA gold")
+# COMMAND ----------
+
+# DBTITLE 1,Set context
+# MAGIC %sql
+# MAGIC USE CATALOG league_records;
+# MAGIC
+# MAGIC USE SCHEMA gold;
+
+# COMMAND ----------
+
+# DBTITLE 1,SOURCE
+SOURCE = spark.sql("""
+SELECT *
+FROM matchend_player_stats
+;
+""").toPandas()
 
 # COMMAND ----------
 
@@ -57,309 +69,330 @@ spark.sql("USE SCHEMA gold")
 # MAGIC %md
 # MAGIC ## Data Quality Check
 # MAGIC
-# MAGIC Before analyzing match outcomes and performance patterns, we need to establish baseline data quality:
+# MAGIC Before analyzing outcomes and performance patterns, we check three things: completeness (missing values), uniqueness (does the primary key hold), and staleness (how many records have a high `unlogged_duration`).
 # MAGIC
-# MAGIC * **Completeness**: Are there missing values that would undermine aggregations?
-# MAGIC * **Uniqueness**: Does the primary key (match_id, participant_pos_id) guarantee one row per player per match?
-# MAGIC * **Staleness**: What percentage of records have `unlogged_duration` high enough to materially misrepresent end-of-game state?
-# MAGIC
-# MAGIC A systematic staleness issue (e.g., >2 minutes unlogged for most matches) would mean our "match-end" metrics are actually "late-game" snapshots, biasing any analysis of final itemization, level scaling, or gold accumulation.
 
 # COMMAND ----------
 
-# DBTITLE 1,Basic Counts & Null Rates
-# Load table into DataFrame
-df = spark.table("matchend_player_stats")
-
-# Row count
-total_rows = df.count()
-print(f"Total rows: {total_rows:,}")
-print(f"Total unique matches: {df.select('match_id').distinct().count():,}")
-
-# Null rate per column
-print("\n=== Null Rate by Column ===")
-null_counts = df.select([(F.sum(F.col(c).isNull().cast("int")) / F.count("*") * 100).alias(c) for c in df.columns])
-null_df = null_counts.toPandas().T
-null_df.columns = ['null_pct']
-null_df = null_df[null_df['null_pct'] > 0].sort_values('null_pct', ascending=False)
-if len(null_df) > 0:
-    print(null_df.to_string())
-else:
-    print("✓ No null values detected in any column")
-
-# Duplicate key check
-print("\n=== Primary Key Check ===")
-key_counts = df.groupBy("match_id", "participant_pos_id").count().filter(F.col("count") > 1)
-duplicate_keys = key_counts.count()
-if duplicate_keys > 0:
-    print(f"⚠️  Found {duplicate_keys} duplicate (match_id, participant_pos_id) pairs")
-else:
-    print("✓ Primary key (match_id, participant_pos_id) is unique")
+# DBTITLE 1,display(SOURCE.head())
+display(SOURCE.head())
 
 # COMMAND ----------
 
-# DBTITLE 1,Staleness Distribution
-# Histogram of unlogged_duration
-unlogged_pd = df.select("unlogged_duration").toPandas()
+# DBTITLE 1,def data_quality_summary()
+def data_quality_summary(df, show_plots: bool = False) -> tuple | None:
+    # ----- Row count
+    total_rows = len(df)
+    total_matches = df['match_id'].nunique()
+    print(f"Total rows: {total_rows:,}")
+    print(f"Total unique matches: {total_matches:,}")
 
-plt.figure(figsize=(12, 5))
-plt.subplot(1, 2, 1)
-plt.hist(unlogged_pd['unlogged_duration'], bins=50, color='steelblue', edgecolor='black')
-plt.axvline(x=120, color='red', linestyle='--', linewidth=2, label='120s threshold')
-plt.xlabel('Unlogged Duration (seconds)')
-plt.ylabel('Frequency')
-plt.title('Distribution of Staleness (unlogged_duration)')
-plt.legend()
+    # ----- Null rate
+    null_pct = (df.isnull().mean() * 100).sort_values(ascending=False)
+    null_pct = null_pct[null_pct > 0]
+    print("\n=== Null Rate by Column ===")
+    print(null_pct.to_string() if len(null_pct) > 0 else "No null values detected in any column")
 
-plt.subplot(1, 2, 2)
-plt.hist(unlogged_pd['unlogged_duration'], bins=50, color='steelblue', edgecolor='black', cumulative=True, density=True)
-plt.axvline(x=120, color='red', linestyle='--', linewidth=2, label='120s threshold')
-plt.xlabel('Unlogged Duration (seconds)')
-plt.ylabel('Cumulative Proportion')
-plt.title('Cumulative Staleness Distribution')
-plt.legend()
-plt.tight_layout()
-plt.show()
+    # ----- Duplicate key check
+    duplicate_keys = df.duplicated(subset=['match_id', 'participant_pos_id']).sum()
+    print("\n=== Primary Key Check ===")
+    print(f"Duplicate (match_id, participant_pos_id) pairs: {duplicate_keys}")
 
-# Calculate staleness statistics
-stale_threshold = 120
-stale_count = (unlogged_pd['unlogged_duration'] > stale_threshold).sum()
-stale_pct = (stale_count / len(unlogged_pd)) * 100
-median_staleness = unlogged_pd['unlogged_duration'].median()
+    # ----- Staleness check
+    stale_threshold = 120
+    stale_pct = (df['unlogged_duration'] > stale_threshold).mean() * 100
+    median_staleness = df['unlogged_duration'].median()
 
-print(f"\n=== Staleness Summary ===")
-print(f"Median unlogged_duration: {median_staleness:.0f} seconds")
-print(f"Rows with >120s staleness: {stale_count:,} ({stale_pct:.1f}%)")
-print(f"\n✓ Takeaway: {stale_pct:.0f}% of records have >2 minutes between last log and match end.")
-if stale_pct > 30:
-    print("  This is significant—final stats may not reflect true end-game state for many matches.")
-else:
-    print("  Most records are relatively fresh; staleness is a minor concern.")
+    print(f"Median unlogged_duration: {median_staleness:.0f} seconds")
+    print(f"Rows with >120s staleness: {stale_pct:.1f}%")
+
+    if not show_plots:
+        return None
+    
+    fig, ax = plt.subplots(figsize=(12, 5), dpi=200)
+    sns.histplot(
+        df['unlogged_duration'], 
+        bins=50, 
+        color='steelblue', 
+        edgecolor='black',
+        ax=ax,
+    )
+    ax.axvline(x=120, color='red', linestyle='--', linewidth=2, label='120s threshold')
+
+    ax.set_xlabel('Unlogged Duration (seconds)')
+    ax.set_ylabel('Frequency')
+    ax.set_title('Distribution of Staleness (unlogged_duration)')
+    ax.legend()
+
+    return fig, ax
+
+data_quality_summary(SOURCE, show_plots=True)
+
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC **Data Quality Takeaway**  
+# MAGIC The matchend_player_stats table is structurally sound with unique keys and minimal missing values. However, a notable share of records have >2 minutes of staleness (`unlogged_duration`), meaning end-game stats may not fully capture the final moments. Fortunately, a primary share of the dataset are fully logged.
 
 # COMMAND ----------
 
 # DBTITLE 1,Win Rate & Competitive Balance
 # MAGIC %md
-# MAGIC ## Win Rate & Side Balance
+# MAGIC ## Aggregated Win Rate % Balance
 # MAGIC
-# MAGIC In competitive team games, structural asymmetries can create unfair advantages. In League of Legends:
-# MAGIC
-# MAGIC * **Side imbalance**: Blue side vs Red side may have inherent map or draft advantages
-# MAGIC * **Role imbalance**: Certain roles (e.g., jungle, mid) may have outsized impact on win probability
-# MAGIC
-# MAGIC We'll measure win rates across both dimensions to identify systematic biases. A 50/50 win rate by side indicates balance; material deviations (e.g., 55/45) suggest meta or structural issues. Role-level win rates help identify which positions are currently strongest in the data's time period.
+# MAGIC Structural asymmetries can create unfair advantages in competitive team games. Blue vs Red side may carry map or draft advantages, and certain roles may have outsized impact on win probability. 
 
 # COMMAND ----------
 
-# DBTITLE 1,Win Rate by Team (Blue vs Red)
-# Win rate by team (side)
-team_wins = df.groupBy("team", "win").count().toPandas()
-team_totals = team_wins.groupby('team')['count'].sum()
-team_win_counts = team_wins[team_wins['win'] == True].set_index('team')['count']
-team_win_rate = (team_win_counts / team_totals * 100).reset_index()
-team_win_rate.columns = ['team', 'win_rate']
+# DBTITLE 1,def win_rate_by()
+def win_rate_by(
+    src: pd.DataFrame, 
+    group_col: str,
+    show_plots: bool = False
+) -> pd.DataFrame:
+    win_rate_df = (src
+        .groupby(group_col)['win']
+        .mean()
+        .mul(100)
+        .rename('win_rate')
+        .reset_index()
+        .sort_values('win_rate', ascending=False)
+    )
+    if not show_plots:
+        return win_rate_df
+    
+    fig, ax = plt.subplots(figsize=(8, 5), dpi=200)
+    sns.barplot(
+        data=win_rate_df,
+        y=group_col, 
+        x='win_rate', 
+        hue=group_col,
+    )
+    ax.axvline(x=50, color='red', linestyle='--', linewidth=1.5, label='50% baseline')
 
-plt.figure(figsize=(8, 5))
-ax = sns.barplot(data=team_win_rate, x='team', y='win_rate', palette='Set2')
-plt.axhline(y=50, color='red', linestyle='--', linewidth=1.5, label='50% baseline')
-plt.ylim(0, 100)
-plt.ylabel('Win Rate (%)')
-plt.xlabel('Team (Side)')
-plt.title('Win Rate by Team Side')
-plt.legend()
+    ax.set_title(f'Win Rate (%) by {group_col}')
+    ax.set_xlabel('Win Rate (%)')
+    ax.set_ylabel(group_col)
+    ax.legend()
 
-# Add value labels on bars
-for i, (idx, row) in enumerate(team_win_rate.iterrows()):
-    ax.text(i, row['win_rate'] + 2, f"{row['win_rate']:.1f}%", ha='center', fontweight='bold')
+    return win_rate_df
 
-plt.tight_layout()
-plt.show()
-
-print("\n=== Side Balance Takeaway ===")
-blue_wr = team_win_rate[team_win_rate['team'] == 'Blue']['win_rate'].values[0]
-red_wr = team_win_rate[team_win_rate['team'] == 'Red']['win_rate'].values[0]
-if abs(blue_wr - red_wr) < 2:
-    print(f"✓ Balanced: Blue ({blue_wr:.1f}%) and Red ({red_wr:.1f}%) win rates are nearly equal.")
-else:
-    favored = 'Blue' if blue_wr > red_wr else 'Red'
-    print(f"⚠️  {favored} side shows a {abs(blue_wr - red_wr):.1f}pp advantage—may indicate meta or map imbalance.")
-
-# COMMAND ----------
-
-# DBTITLE 1,Win Rate by Champion Role
-# Win rate by champion role
-role_wins = df.groupBy("champion_role", "win").count().toPandas()
-role_totals = role_wins.groupby('champion_role')['count'].sum()
-role_win_counts = role_wins[role_wins['win'] == True].set_index('champion_role')['count']
-role_win_rate = (role_win_counts / role_totals * 100).reset_index()
-role_win_rate.columns = ['champion_role', 'win_rate']
-role_win_rate = role_win_rate.sort_values('win_rate', ascending=False)
-
-plt.figure(figsize=(10, 5))
-ax = sns.barplot(data=role_win_rate, x='champion_role', y='win_rate', palette='viridis')
-plt.axhline(y=50, color='red', linestyle='--', linewidth=1.5, label='50% baseline')
-plt.ylim(0, 100)
-plt.ylabel('Win Rate (%)')
-plt.xlabel('Champion Role')
-plt.title('Win Rate by Champion Role')
-plt.legend()
-
-# Add value labels
-for i, (idx, row) in enumerate(role_win_rate.iterrows()):
-    ax.text(i, row['win_rate'] + 2, f"{row['win_rate']:.1f}%", ha='center', fontweight='bold')
-
-plt.tight_layout()
-plt.show()
-
-print("\n=== Role Balance Takeaway ===")
-win_rate_range = role_win_rate['win_rate'].max() - role_win_rate['win_rate'].min()
-if win_rate_range < 3:
-    print(f"✓ All roles have similar win rates (range: {win_rate_range:.1f}pp)—role selection balanced.")
-else:
-    best_role = role_win_rate.iloc[0]['champion_role']
-    worst_role = role_win_rate.iloc[-1]['champion_role']
-    print(f"⚠️  {best_role} ({role_win_rate.iloc[0]['win_rate']:.1f}%) outperforms {worst_role} ({role_win_rate.iloc[-1]['win_rate']:.1f}%) by {win_rate_range:.1f}pp.")
+win_rate_by(SOURCE, 'team', show_plots=True)
 
 # COMMAND ----------
 
-# DBTITLE 1,Role Benchmarking & Performance Variance
 # MAGIC %md
-# MAGIC ## Role Benchmarking: KDA & Economy
-# MAGIC
-# MAGIC Different roles have fundamentally different performance profiles:
-# MAGIC
-# MAGIC * **Carry roles** (ADC, Mid) typically show higher kills and gold accumulation
-# MAGIC * **Support** roles prioritize assists and vision control over personal economy
-# MAGIC * **Jungle** balances farming (CS) with map pressure and objective control
-# MAGIC * **Top lane** often shows high variance due to island-style gameplay
-# MAGIC
-# MAGIC We'll examine two key benchmarks:
-# MAGIC
-# MAGIC 1. **KDA ratio** = (Kills + Assists) / Deaths — a composite combat effectiveness metric
-# MAGIC 2. **CS (Creep Score)** — gold-earning efficiency through farming
-# MAGIC
-# MAGIC Boxplots will reveal not just central tendency but also **performance variance** within each role. Wide variance suggests high skill expression or champion diversity; narrow variance indicates standardized performance.
+# MAGIC **BLUE vs RED Win Rate Takeaway**  
+# MAGIC Blue and Red sides show near-equal win rates, indicating fair structural balance with no significant side advantage.
 
 # COMMAND ----------
 
-# DBTITLE 1,KDA Ratio by Role
-# Calculate KDA ratio
-df_kda = df.withColumn(
-    "kda_ratio",
-    (F.col("kills") + F.col("assists")) / F.when(F.col("deaths") == 0, 1).otherwise(F.col("deaths"))
-).select("champion_role", "kda_ratio")
-
-kda_pd = df_kda.toPandas()
-
-# Boxplot of KDA by role
-plt.figure(figsize=(12, 6))
-sns.boxplot(data=kda_pd, x='champion_role', y='kda_ratio', palette='coolwarm', showfliers=False)
-plt.ylabel('KDA Ratio ((K+A)/D)')
-plt.xlabel('Champion Role')
-plt.title('KDA Ratio Distribution by Role (outliers removed for clarity)')
-plt.axhline(y=kda_pd['kda_ratio'].median(), color='green', linestyle='--', linewidth=1, label='Overall median')
-plt.legend()
-plt.tight_layout()
-plt.show()
-
-print("\n=== KDA Variance Takeaway ===")
-role_kda_stats = kda_pd.groupby('champion_role')['kda_ratio'].agg(['median', 'std', 'count']).sort_values('std', ascending=False)
-print(role_kda_stats.to_string())
-print(f"\nHighest variance: {role_kda_stats.index[0]} shows wide KDA spread (std={role_kda_stats.iloc[0]['std']:.2f}), indicating high skill expression.")
-print(f"Most consistent: {role_kda_stats.index[-1]} has narrowest KDA spread (std={role_kda_stats.iloc[-1]['std']:.2f}), suggesting standardized performance.")
+# MAGIC %md
+# MAGIC ## Roles Economy Balance 
+# MAGIC Roles in LoL have fundamentally different performance profiles:
+# MAGIC
+# MAGIC - **Carry roles (ADC, Mid, Top):** Typically post higher CS and accumulate more gold.
+# MAGIC - **Support:** Prioritizes assists and vision control over personal economy.
+# MAGIC - **Jungle:** Balances farming (CS) with map pressure and objective control.
+# MAGIC
+# MAGIC We benchmark two key signals:
+# MAGIC 1. `KDA_ratio` **(Kills + Assists) / (Deaths + 1)**, a composite metric of combat effectiveness.
+# MAGIC 2. `CS` **(minion CS + jungle CS)**, a measure of farming efficiency.
+# MAGIC
+# MAGIC Boxplots reveal not just central tendency, but also performance variance within each role. Wide variance suggests high skill expression or champion diversity; narrow variance indicates standardized performance.
 
 # COMMAND ----------
 
-# DBTITLE 1,CS (Creep Score) by Role
-# Boxplot of CS by role
-cs_pd = df.select("champion_role", "cs").toPandas()
+# DBTITLE 1,def kda_by()
+def kda_by(
+    df: pd.DataFrame, 
+    group_col: str, 
+    show_plots: bool = False
+) -> pd.DataFrame:
+    df = df.assign(
+        kda_ratio=(df['kills'] + df['assists']) / (df['deaths'] + 1)
+    )
+    
+    agg_kda_stats = (df           
+        .groupby(group_col)['kda_ratio']
+        .agg(['median', 'std', 'count'])
+        .sort_values('std', ascending=False)
+    )
 
-plt.figure(figsize=(12, 6))
-sns.boxplot(data=cs_pd, x='champion_role', y='cs', palette='Set3', showfliers=False)
-plt.ylabel('CS (Creep Score)')
-plt.xlabel('Champion Role')
-plt.title('CS Distribution by Role (outliers removed for clarity)')
-plt.axhline(y=cs_pd['cs'].median(), color='purple', linestyle='--', linewidth=1, label='Overall median')
-plt.legend()
-plt.tight_layout()
-plt.show()
+    if not show_plots:
+        return agg_kda_stats
+    
+    fig, ax = plt.subplots(figsize=(10, 6))
+    sns.boxplot(
+        data=df,
+        x=group_col, 
+        y='kda_ratio', 
+        hue=group_col, 
+        showfliers=False,
+        ax=ax
+    )
+    ax.set_ylabel('KDA Ratio')
+    ax.set_xlabel(group_col)
+    ax.set_title(f'KDA Ratio Distribution by {group_col} (outliers removed for clarity)')
 
-print("\n=== CS by Role Takeaway ===")
-role_cs_stats = cs_pd.groupby('champion_role')['cs'].agg(['median', 'mean', 'count']).sort_values('median', ascending=False)
-print(role_cs_stats.to_string())
-print(f"\n✓ Highest CS: {role_cs_stats.index[0]} (median {role_cs_stats.iloc[0]['median']:.0f})—likely carry/farming role.")
-print(f"✓ Lowest CS: {role_cs_stats.index[-1]} (median {role_cs_stats.iloc[-1]['median']:.0f})—likely support or roaming role.")
+    ax.axhline(
+        y=df['kda_ratio'].median(), 
+        color='green', 
+        linestyle='--', 
+        linewidth=1, 
+        label='Overall median'
+    )
+    ax.legend()
+
+    return agg_kda_stats
+
+kda_by(SOURCE, 'champion_role', show_plots=True)
 
 # COMMAND ----------
 
-# DBTITLE 1,Economy vs Outcome: Gold as a Win Predictor
+# DBTITLE 1,def cs_by()
+def cs_by(df: pd.DataFrame, group_col: str, show_plots: bool = False):
+    agg_cs_stats = (df
+        .groupby(group_col)['cs']
+        .agg(['median', 'mean', 'count'])
+        .sort_values('median', ascending=False)
+    )
+
+    if not show_plots:
+        return agg_cs_stats
+    
+    fig, ax = plt.subplots(figsize=(12, 6))
+    sns.boxplot(
+        data=df, 
+        x=group_col, 
+        y='cs', 
+        hue=group_col, 
+        showfliers=False, 
+        ax=ax
+    )
+    ax.set_ylabel('CS')
+    ax.set_xlabel(group_col)
+    ax.set_title(f'CS Distribution by {group_col} (outliers removed for clarity)')
+
+    ax.axhline(
+        y=df['cs'].median(), 
+        color='purple', 
+        linestyle='--', 
+        linewidth=1, 
+        label='Overall median'
+    )
+    ax.legend()
+
+    return agg_cs_stats
+
+cs_by(SOURCE, 'champion_role', show_plots=True)
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC **Role Performance Takeaway**  
+# MAGIC 1. `KDA_ratio` Top has the lowest KDA ratio, Support has the highest KDA ratio. The difference between these two, and among the five roles in general, are still within <1 kda_ratio. 
+# MAGIC 2. `CS` Support CS distribution has very little variance, and tightly hug around the 0-50 range. All other roles, as expected, are overall very even to one another variance wise and median wise.
+
+# COMMAND ----------
+
 # MAGIC %md
 # MAGIC ## Economy vs Outcome
 # MAGIC
-# MAGIC In League of Legends, gold translates directly into power through items and stat scaling. We expect:
-# MAGIC
-# MAGIC * **Positive correlation** between total_gold and kills (gold enables combat dominance)
-# MAGIC * **Higher gold accumulation** in winning teams (snowball effect)
-# MAGIC * **Gold-per-minute** as a normalized efficiency metric
-# MAGIC
-# MAGIC If gold is a strong predictor of victory, winning players should show systematically higher gold accumulation even after controlling for match duration. Conversely, if gold shows weak differentiation between win/loss groups, other factors (strategy, team coordination, objective control) may be more decisive.
-# MAGIC
-# MAGIC This section explores whether economic advantage reliably translates to match outcomes.
+# MAGIC Gold converts directly into power through items and stat scaling. If gold is a strong predictor of victory:
+# MAGIC  winning players should show systematically higher gold accumulation.
 
 # COMMAND ----------
 
-# DBTITLE 1,Gold vs Kills Scatter Plot
-# Scatter plot: total_gold vs kills, colored by win
-# Sample to avoid overplotting
-sampled_df = df.sample(fraction=0.1, seed=42).select("total_gold", "kills", "win").toPandas()
+# DBTITLE 1,def scatter_stats()
+def scatter_stats(
+    df: pd.DataFrame, 
+    x: str,
+    y: str,
+    hue: str = None,
+    pct: float = 0.1,
+    seed: int = 42
+):
+    df = df.sample(frac=pct, random_state=seed)[[x, y, hue]]
+    fig, ax = plt.subplots(figsize=(12, 6))
+    sns.scatterplot(
+        data=df,
+        x=x, 
+        y=y, 
+        hue=hue or x, 
+        alpha=0.6, 
+        s=30, 
+        ax=ax
+    )
+    ax.set_xlabel(x)
+    ax.set_ylabel(y)
+    ax.set_title(f'{x} vs {y} ({pct * 100:.2f}% sample)')
 
-plt.figure(figsize=(12, 6))
-sns.scatterplot(data=sampled_df, x='total_gold', y='kills', hue='win', palette='coolwarm', alpha=0.6, s=30)
-plt.xlabel('Total Gold Earned')
-plt.ylabel('Kills')
-plt.title('Total Gold vs Kills (colored by Win/Loss, 10% sample)')
-plt.legend(title='Win', labels=['Loss', 'Win'])
-plt.tight_layout()
-plt.show()
+    ax.legend(title=hue, labels=[*df[hue].unique()])
 
-print("\n=== Gold-Kills Relationship ===")
-corr = sampled_df[['total_gold', 'kills']].corr().iloc[0, 1]
-print(f"Correlation (gold vs kills): {corr:.3f}")
-if corr > 0.5:
-    print("✓ Strong positive correlation—higher gold players tend to accumulate more kills.")
-else:
-    print("✓ Moderate correlation—gold and kills are related but not tightly coupled.")
+    print(f"=== {x}-{y} Relationship ===")
+    corr = df[[x, y]].corr().iloc[0, 1]
+    print(f"Correlation ({x} vs {y}): {corr:.3f}")
+    if corr > 0.5:
+        print(f"✓ Strong positive correlation between {x} and {y}.")
+    else:
+        print(f"✓ Moderate correlation between {x} and {y}.")
 
 # COMMAND ----------
 
-# DBTITLE 1,Gold-Per-Minute Analysis by Outcome
-# Calculate gold-per-minute
-df_gpm = df.withColumn(
-    "gold_per_min",
-    (F.col("total_gold") / (F.col("game_duration") / 60))
-).select("gold_per_min", "win")
+# DBTITLE 1,scatter_stats(kills, total_gold, win)
+scatter_stats(SOURCE, 'kills', 'total_gold', hue='win', pct=0.1)
 
-gpm_pd = df_gpm.toPandas()
+# COMMAND ----------
 
-# Violin plot of GPM by win/loss
-plt.figure(figsize=(10, 6))
-sns.violinplot(data=gpm_pd, x='win', y='gold_per_min', palette='pastel', inner='quartile')
-plt.xlabel('Match Outcome')
-plt.ylabel('Gold Per Minute (GPM)')
-plt.title('Gold-Per-Minute Distribution by Win/Loss')
-plt.xticks([0, 1], ['Loss', 'Win'])
-plt.tight_layout()
-plt.show()
+# DBTITLE 1,scatter_stats(cs, total_gold, win)
+scatter_stats(SOURCE, 'cs', 'total_gold', 'win')
 
-print("\n=== Gold Economy & Win Probability ===")
-gpm_stats = gpm_pd.groupby('win')['gold_per_min'].agg(['mean', 'median', 'std'])
-print(gpm_stats.to_string())
-win_gpm = gpm_stats.loc[True, 'median']
-loss_gpm = gpm_stats.loc[False, 'median']
-gpm_diff = win_gpm - loss_gpm
-gpm_diff_pct = (gpm_diff / loss_gpm) * 100
-print(f"\n✓ Winning players earn {gpm_diff:.0f} GPM more than losing players (median), a {gpm_diff_pct:.1f}% advantage.")
-print("  This confirms that economic efficiency is strongly predictive of match outcomes.")
+# COMMAND ----------
+
+# DBTITLE 1,def gold_per_minute_plot()
+def gold_per_minute_plot(df: pd.DataFrame, show_plots: bool = True):
+    df = (df
+        .assign(gold_per_min=df['total_gold'] / (df['game_duration'] / 60))
+        [['gold_per_min', 'win']]
+    )
+    agg_df = (df
+        .groupby('win')['gold_per_min']
+        .agg(['mean', 'median', 'std'])
+    )
+    print("\n=== Gold Economy & Win Probability ===")
+    win_gpm = agg_df.loc[True, 'median']
+    loss_gpm = agg_df.loc[False, 'median']
+    gpm_diff =  agg_df.loc[True, 'median'] - loss_gpm
+    gpm_diff_pct = (gpm_diff / loss_gpm) * 100
+    if gpm_diff > 0:
+        print(f"\n✓ Winning players earn {gpm_diff:.0f} GPM more than losing players (median), a {gpm_diff_pct:.1f}% advantage.")
+    else:
+        print(f"\n✗ Losing players earn {abs(gpm_diff):.0f} GPM more than winning players (median), a {abs(gpm_diff_pct):.1f}% disadvantage.")
+
+    if not show_plots:
+        return agg_df
+
+    fig, ax = plt.subplots(figsize=(10, 6))
+    sns.violinplot(
+        data=df,
+        x='win',
+        y='gold_per_min', 
+        hue='win', 
+        inner='quartile', 
+        ax=ax
+    )
+    ax.set_xlabel('Match Outcome')
+    ax.set_ylabel('Gold Per Minute (GPM)')
+    ax.set_title('Gold-Per-Minute Distribution by Win/Loss')
+
+    ax.set_xticks([0, 1])
+    ax.set_xticklabels(['Loss', 'Win'])
+
+    return agg_df
+
+gold_per_minute_plot(SOURCE, show_plots=True)
 
 # COMMAND ----------
 
@@ -367,69 +400,48 @@ print("  This confirms that economic efficiency is strongly predictive of match 
 # MAGIC %md
 # MAGIC ## Correlation View: Identifying Win Drivers
 # MAGIC
-# MAGIC While individual metrics tell part of the story, **correlation analysis** reveals which performance dimensions move together and which most strongly predict victory.
-# MAGIC
-# MAGIC We'll compute pairwise correlations among:
-# MAGIC
-# MAGIC * **Combat metrics**: kills, deaths, assists
-# MAGIC * **Economy**: total_gold, cs
-# MAGIC * **Scaling**: level
-# MAGIC * **Outcome**: win (cast to 0/1 integer)
-# MAGIC
-# MAGIC A correlation heatmap makes patterns visible at a glance:
-# MAGIC
-# MAGIC * **Strong positive correlations** (near +1) indicate metrics that rise together
-# MAGIC * **Strong negative correlations** (near -1) indicate inverse relationships
-# MAGIC * **Weak correlations** (near 0) suggest independence
-# MAGIC
-# MAGIC For stakeholder communication, we'll highlight which metrics show the **strongest association with winning**—these are leading indicators worth tracking in live-game dashboards or player development.
+# MAGIC **Correlation analysis** reveals which performance dimensions move together and which most strongly predict victory using a correlation heatmap.
 
 # COMMAND ----------
 
 # DBTITLE 1,Correlation Heatmap
-# Select numeric columns and convert win to integer
-corr_cols = ['kills', 'deaths', 'assists', 'cs', 'total_gold', 'level', 'win']
-corr_df = df.select([F.col(c) if c != 'win' else F.col('win').cast('int').alias('win') for c in corr_cols])
-corr_pd = corr_df.toPandas()
+def correlation_heatmap(df, corr_cols=None):
+    if corr_cols is None:
+        corr_cols = ['kills', 'deaths', 'assists', 'cs', 'total_gold', 'level', 'win']
 
-# Compute correlation matrix
-corr_matrix = corr_pd.corr()
+    df = (df[corr_cols]
+        .assign(win=df['win'].astype('int64'))
+    )
+    corr_matrix = df.corr()
+    fig, ax = plt.subplots(figsize=(10, 8))
+    sns.heatmap(
+        corr_matrix, annot=True, fmt='.2f', cmap='coolwarm', center=0, 
+        square=True, linewidths=1, cbar_kws={"shrink": 0.8}, ax=ax
+    )
+    ax.set_title('Correlation Matrix: Performance Metrics & Win Outcome')
 
-# Heatmap
-plt.figure(figsize=(10, 8))
-sns.heatmap(corr_matrix, annot=True, fmt='.2f', cmap='coolwarm', center=0, 
-            square=True, linewidths=1, cbar_kws={"shrink": 0.8})
-plt.title('Correlation Matrix: Performance Metrics & Win Outcome')
-plt.tight_layout()
-plt.show()
+    print("\n=== Strongest Correlates of Winning ===")
+    win_corrs = (corr_matrix['win']
+        .drop('win')
+        .sort_values(ascending=False)
+    )
+    print(f"\n✓ Top positive predictor: {win_corrs.index[0]} (r={win_corrs.iloc[0]:.3f})")
+    print(f"✓ Top negative predictor: {win_corrs.index[-1]} (r={win_corrs.iloc[-1]:.3f})")
 
-print("\n=== Strongest Correlates of Winning ===")
-win_corrs = corr_matrix['win'].drop('win').sort_values(ascending=False)
-print(win_corrs.to_string())
-print(f"\n✓ Top positive predictor: {win_corrs.index[0]} (r={win_corrs.iloc[0]:.3f})")
-print(f"✓ Top negative predictor: {win_corrs.index[-1]} (r={win_corrs.iloc[-1]:.3f})")
-print("\nInterpretation: Players who maximize positive correlates (gold, kills, level) while minimizing")
-print("negative correlates (deaths) have the highest win probability.")
+correlation_heatmap(SOURCE)
 
 # COMMAND ----------
 
 # DBTITLE 1,Executive Summary
 # MAGIC %md
-# MAGIC ## Executive Summary: Key Findings
+# MAGIC ## Executive Summary
 # MAGIC
-# MAGIC This exploratory analysis of match-end player statistics reveals several actionable insights for stakeholders:
+# MAGIC * **Data Quality**: The table maintains strong structural integrity (unique keys, minimal nulls). However, staleness remains a concern.  Downstream analyses should account for this when interpreting final itemization or level scaling. Ensure to use only data that has `unlogged_duration` = 0, or otherwise account for the staleness in their analysis.
 # MAGIC
-# MAGIC * **Data Quality**: The table maintains strong structural integrity (unique keys, minimal nulls). However, staleness remains a concern—a material percentage of records have >2 minutes between the last logged interval and match end, meaning "end-game" stats may not reflect literal Nexus-fall state. Downstream analyses should account for this when interpreting final itemization or level scaling.
+# MAGIC * **Competitive Balance**: Side balance (Blue vs Red) appears fair, with win rates close to 50/50. Role balance shows minor variance but no single role dominates—matchmaking.
 # MAGIC
-# MAGIC * **Competitive Balance**: Side balance (Blue vs Red) appears fair, with win rates close to 50/50. Any deviations observed are likely meta-dependent rather than structural. Role balance shows minor variance but no single role dominates—matchmaking and champion diversity appear healthy.
+# MAGIC * **Performance Variance**: Roles exhibit predictable patterns—carry roles (ADC, Mid) show high CS and gold, while support shows low CS but high assist rates. KDA variance differs by role, with some positions (e.g., jungle, top) showing wider spreads.
 # MAGIC
-# MAGIC * **Performance Variance**: Roles exhibit predictable patterns—carry roles (ADC, Mid) show high CS and gold, while support shows low CS but high assist rates. KDA variance differs by role, with some positions (e.g., jungle, top) showing wider spreads, indicating higher skill expression or champion diversity.
+# MAGIC * **Economy as a Win Driver**: Winning players earn higher gold-per-minute median, significance testing still needs to be done to confirm this is not due to sampling chance.
 # MAGIC
-# MAGIC * **Economy as a Win Driver**: Gold accumulation is strongly predictive of victory. Winning players consistently earn higher gold-per-minute (10-20% advantage observed in many cases), confirming that economic efficiency—via CS, kills, and objective bounties—translates directly to win probability. This validates gold-focused coaching and live-game economic tracking.
-# MAGIC
-# MAGIC * **Correlation Insights**: Kills, gold, and level show strong positive correlation with winning, while deaths show the strongest negative correlation. The takeaway for player development: minimize deaths while maximizing economy (CS, objectives) and combat participation (kills/assists). These are the metrics that matter most.
-# MAGIC
-# MAGIC * **Actionable Next Steps**: 
-# MAGIC   - **For analysts**: Use this table to build predictive models (win probability, player skill rating) by focusing on gold, KDA, and level as primary features.
-# MAGIC   - **For coaches**: Prioritize economic efficiency (CS, objective control) and death minimization in training regimens.
-# MAGIC   - **For data engineers**: Investigate reducing `unlogged_duration` to capture true match-end snapshots, especially for final itemization analysis.
+# MAGIC * **Correlation Insights**: Kills, gold, and level show strong positive correlation with winning, while deaths show the strongest negative correlation.
