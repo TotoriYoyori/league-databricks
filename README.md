@@ -63,6 +63,8 @@ Workspace/Users/<your_email>@<domain.com>/league-databricks$ python deploy.py
 That's it! 
 
 ---
+**Built with** --> Databricks | Python | SQL | 
+**Python Library Used** --> Pandas | NumPy | Matplotlib | Seaborn | Sklearn | Statsmodels | Pyspark | And others...
 
-**Built with** --> Databricks | Python | SQL | Unity Catalog | 
-**Python Library Used** --> Pandas | NumPy | Matplotlib | Seaborn | Sklearn | Statsmodels | And others...
+> If you like my work and would like to discuss employment opportunities --> **email: stan.mng@gmail.com**.
+
