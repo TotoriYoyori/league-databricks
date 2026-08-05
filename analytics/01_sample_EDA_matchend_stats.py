@@ -16,7 +16,7 @@
 # MAGIC 3. Benchmark performance (KDA, CS) by role
 # MAGIC 4. Examine how economy (gold) relates to match outcome
 # MAGIC 5. Surface the strongest correlates of winning
-# MAGIC 6. Land on plain-language takeaways for stakeholders
+# MAGIC 6. Summarize and report.
 # MAGIC
 # MAGIC ## Table Schema
 # MAGIC
