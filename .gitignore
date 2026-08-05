@@ -1,0 +1,28 @@
+# --- Python artifacts ---
+__pycache__/
+*.pyc
+*.pyo
+
+# --- Jupyter checkpoints ---
+.ipynb_checkpoints/
+
+# --- Local virtual environments ---
+.venv/
+venv/
+env/
+
+# --- Credentials safety net ---
+.databrickscfg
+.env
+
+# --- OS / editor junk ---
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/
+
+# --- Raw data ---
+data/
+*.csv
+*.csv.gz
