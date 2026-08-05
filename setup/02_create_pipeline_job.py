@@ -1,19 +1,10 @@
+import sys
 from pathlib import Path
-from databricks.sdk import WorkspaceClient
 from databricks.sdk.service.pipelines import PipelineLibrary, PathPattern
 from databricks.sdk.service.jobs import Job, Task, PipelineTask, TaskDependency
 
-import sys
-from pathlib import Path
-
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-import _common as common
-
-w = WorkspaceClient()
-
-# --------------- 01. Constants ---------------
-SCHEMA_LAYERS = ['bronze', 'silver', 'gold']
-JOB_NAME = 'league_csv_etl'
+import _common as c
 
 # --------------- 02. Steps ---------------
 def to_workspace_path(fs_path: Path) -> str:
@@ -36,21 +27,21 @@ def to_workspace_path(fs_path: Path) -> str:
 
 def get_or_create_pipeline(name: str, source_glob: str, layer: str) -> str | None:
     """Get existing pipeline ID by name, or create it if it doesn't exist."""
-    pipelines = w.pipelines.list_pipelines(filter=f"name LIKE '{name}'")
+    pipelines = c.w.pipelines.list_pipelines(filter=f"name LIKE '{name}'")
     for pipeline in pipelines:
         if pipeline.name == name:
             print(f"Found existing pipeline: {name} ({pipeline.pipeline_id})")
             return pipeline.pipeline_id
 
     print(f"Creating new pipeline: {name}")
-    new_pipeline = w.pipelines.create(
+    new_pipeline = c.w.pipelines.create(
         name=name,
         continuous=False,
         serverless=True,
-        catalog=common.CATALOG,
+        catalog=c.CATALOG,
         schema=layer,
         libraries=[PipelineLibrary(glob=PathPattern(include=source_glob))],
-        configuration={"catalog": common.CATALOG, "schema": layer},
+        configuration={"catalog": c.CATALOG, "schema": layer},
     )
     print(f"Created pipeline: {name} ({new_pipeline.pipeline_id})")
     return new_pipeline.pipeline_id
@@ -78,14 +69,14 @@ def create_medallion_job_if_not_exists(
         The existing Job object if one with the same name already exists,
         otherwise the CreateResponse from job creation.
     """
-    existing_jobs = list(w.jobs.list(name=job_name))
+    existing_jobs = list(c.w.jobs.list(name=job_name))
     if existing_jobs:
         existing_job = existing_jobs[0]
         print(f"Found existing job: {job_name} ({existing_job.job_id}), skipping creation.")
         return existing_job
 
     print("---------- Creating job ----------")
-    job = w.jobs.create(
+    job = c.w.jobs.create(
         name=job_name,
         tasks=[
             Task(
@@ -116,7 +107,7 @@ if __name__ == "__main__":
     repo_root_ws_path = to_workspace_path(repo_root)
     model_paths = {
         layer: f"{repo_root_ws_path}/models/{layer}/transformations/**"
-        for layer in SCHEMA_LAYERS
+        for layer in c.SCHEMA_LAYERS
     }
 
     print("---------- Resolved model source globs ----------")
@@ -130,14 +121,14 @@ if __name__ == "__main__":
             source_glob=model_paths[layer],
             layer=layer
         )
-        for layer in SCHEMA_LAYERS
+        for layer in c.SCHEMA_LAYERS
     }
 
     job = create_medallion_job_if_not_exists(
-        job_name=JOB_NAME,
+        job_name=c.JOB_NAME,
         **{
             f"{layer}_id": pipeline_ids[f"league_{layer}"]
-            for layer in SCHEMA_LAYERS
+            for layer in c.SCHEMA_LAYERS
         }
     )
     

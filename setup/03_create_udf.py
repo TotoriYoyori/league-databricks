@@ -2,11 +2,9 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-import _common as common
+import _common as c
 
 # --------------- 01. Constants ---------------
-SCHEMA = "silver"
-
 STATEMENTS = [
     # ----- String ops: PascalCase -> Title Case
     """
@@ -76,11 +74,11 @@ STATEMENTS = [
 # --------------- 02. Main ---------------
 if __name__ == "__main__":
     print("---------- Resolving SQL warehouse ----------")
-    warehouse_id = common.resolve_running_warehouse()
+    warehouse_id = c.resolve_running_warehouse()
 
-    print(f"\n---------- Creating UDFs in {common.CATALOG}.{SCHEMA} ----------")
+    print(f"\n---------- Creating UDFs in {c.CATALOG}.{c.SILVER} ----------")
     for stmt in STATEMENTS:
-        common.run_statement(warehouse_id, stmt, catalog=common.CATALOG, schema=SCHEMA)
+        c.run_statement(warehouse_id, stmt, catalog=c.CATALOG, schema=c.SILVER)
 
     print("\n  UDFs created (or already existed).")
     

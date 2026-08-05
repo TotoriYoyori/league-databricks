@@ -1,8 +1,12 @@
+import sys
 from pathlib import Path
 import requests
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import _common as c
+
 # --------------- 01. Constants ---------------
-VOLUME_DIR = Path("/Volumes/league_records/bronze/kaggle_csv")
+VOLUME_DIR = Path(f"/Volumes/{c.CATALOG}/{c.BRONZE}/kaggle_csv")
 RELEASE_BASE_URL = "https://github.com/TotoriYoyori/league-databricks/releases/download/source"
 FILE_TO_SUBFOLDER = {
     "champions_ref.csv.gz": "champions",

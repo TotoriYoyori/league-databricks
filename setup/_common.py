@@ -5,6 +5,11 @@ w = WorkspaceClient()
 # --------------- 01. Constants ---------------
 PREFERRED_WAREHOUSE_NAME = "Serverless Starter Warehouse"
 CATALOG = "league_records"
+BRONZE = "bronze"
+SILVER = "silver"
+GOLD = "gold"
+SCHEMA_LAYERS = [BRONZE, SILVER, GOLD]
+JOB_NAME = "league_csv_etl"
 
 
 # --------------- 02. Helpers ---------------
