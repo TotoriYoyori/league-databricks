@@ -11,7 +11,7 @@ CREATE OR REPLACE VIEW _noref_champion_name (
     file_name COMMENT 'Bronze source file name for the source row.',
     rsrc COMMENT 'Bronze record source identifier for the source row.'
 )
-COMMENT '[silver] Data quality view: player rows whose champion_name cannot be resolved against the current version of champions_ref, with bronze ingestion metadata for traceability.'
+COMMENT '[gold] Data quality view: player rows whose champion_name cannot be resolved against the current version of champions_ref, with bronze ingestion metadata for traceability.'
 AS
 -------------------------------------------------------------------------------------------
 -- Flag rows in logged player data (silver.players) that cannot be resolved to a 

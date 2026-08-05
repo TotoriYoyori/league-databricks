@@ -1,6 +1,6 @@
 -------------------------------------------------------------------------------------------
 -- DESIGN NOTES:
---     Grain is (match_id, participant_pos_id, minute) -- one row per player, per 5 minutes.
+--     Grain is (match_id, participant_pos_id, minute): one row per player, per 5 minutes.
 -------------------------------------------------------------------------------------------
 CREATE OR REFRESH MATERIALIZED VIEW diff_intervals (
     -- Key

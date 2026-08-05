@@ -40,7 +40,7 @@ def get_warehouse_id(preferred_name: str = PREFERRED_WAREHOUSE_NAME) -> tuple[st
 
     fallback = all_warehouses[0]
     print(
-        f"Warehouse '{preferred_name}' not found — "
+        f"Warehouse '{preferred_name}' not found! "
         f"falling back to first available warehouse: '{fallback.name}'."
     )
     return fallback.id, fallback.name
