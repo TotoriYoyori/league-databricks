@@ -1,6 +1,6 @@
 ![Banner](assets/img/banner.jpg)
 
-# League of Legends ETL Data Pipeline 
+# League of Legends DATABRICKS ETL Data Pipeline 
 
 **Simple oneshot LoL analytics pipeline built on Databricks. Over 20 different joins, and 20 million rows read.** 
 
@@ -8,7 +8,7 @@
 
 2. This project only ingested all the raw .csv one time and run them through a medallion data pipeline. For a version of this pipeline, deployed on Snowflake, with simulated daily ingestion and incremental loading, see [*here*](https://github.com/TotoriYoyori/league-snowflake).
 
-> *"League of Legends ETL Data Pipeline" was created under Riot Games' "Legal Jibber Jabber" policy using assets owned by Riot Games. Riot Games does not endorse or sponsor this project.*
+> *"League of Legends DATABRICKS ETL Data Pipeline" was created under Riot Games' "Legal Jibber Jabber" policy using assets owned by Riot Games. Riot Games does not endorse or sponsor this project.*
 
 ---
 
